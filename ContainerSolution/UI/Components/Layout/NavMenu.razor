@@ -1,0 +1,154 @@
+﻿@using EL
+@rendermode InteractiveServer
+@inject NavigationManager NM
+@inject IJSRuntime JS
+
+@inject UI.Authentication.IAutenticationsServices AuthenticationService
+@inject DAL.IAuthenticationController AuthenticationController
+
+<RadzenPanelMenu ShowArrow="true" DisplayStyle="@(IconMenu ? MenuItemDisplayStyle.Icon : MenuItemDisplayStyle.IconAndText)" Style=@CustomStyle>
+    <RadzenPanelMenuItem Text="Inicio" Path="home" Icon="home" />
+    @if (VerSeguridad)
+    {
+        <RadzenPanelMenuItem Text="Seguridad" Icon="security">
+            <RadzenPanelMenuItem Text="Usuarios" Icon="Person" Path="Users" Visible=@VerUsuario />
+            <RadzenPanelMenuItem Text="Usuario Formularios" Icon="group" Path="UsuarioFormulario" Visible=@VerUsuarioFormulario />
+            <RadzenPanelMenuItem Text="Usuario Permisos" Icon="group" Path="UsuarioPermisos" Visible=@VerUsuarioPermisos />
+        </RadzenPanelMenuItem>
+    }
+</RadzenPanelMenu>
+
+@if (isAuthenticated)
+{
+    <div style="margin-top:auto; padding:1rem;">
+        <RadzenButton Text="Cerrar sesión"
+                      Icon="logout"
+                      ButtonStyle="ButtonStyle.Danger"
+                      Click="CerrarSesion"
+                      Style="width:100%;" />
+    </div>
+}
+
+@code {
+    public bool IconMenu { get; set; }
+    private DotNetObjectReference<NavMenu>? dotNetRef;
+
+    public string CustomStyle => IconMenu ? "max-width:70px !important;" : "max-width:250px !important;";
+
+    public List<vFormulariosUsuario>? AccesoFormularios { get; set; }
+    public bool VerSeguridad { get; set; } = false;
+    public bool VerUsuario { get; set; } = false;
+    public bool VerUsuarioFormulario { get; set; } = false;
+    public bool VerUsuarioPermisos { get; set; } = false;
+
+    private bool isAuthenticated = false;
+    private bool isAuthStateVerified = false;
+    private bool isRefreshing = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthStateVerified)
+        {
+            await RefreshAuthenticationState();
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("detectarAnchoDotNet", dotNetRef);
+        }
+    }
+
+    private async Task CerrarSesion()
+    {
+        await AuthenticationService.Logout();
+        NM.NavigateTo("/", forceLoad: true);
+    }
+
+    private async Task RefreshAuthenticationState()
+    {
+        if (isRefreshing) return;
+
+        isRefreshing = true;
+        try
+        {
+            var wasAuthenticated = isAuthenticated;
+            isAuthenticated = await AuthenticationService.IsAuthenticated();
+
+            if (isAuthenticated)
+            {
+                await AuthenticationService.ExtendSession();
+                var session = await AuthenticationService.GetAuthenticated();
+
+                if (session.IdUsuario > 0)
+                {
+                    AccesoFormularios = await AuthenticationController.GetVFormularios((short)session.IdUsuario);
+                }
+
+                bool permisosCambiaron = CargarPermisosFormularios();
+
+                if (!isAuthStateVerified || !wasAuthenticated || permisosCambiaron)
+                {
+                    isAuthStateVerified = true;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                AccesoFormularios = new();
+            }
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+
+    private bool CargarPermisosFormularios()
+    {
+        if (AccesoFormularios == null)
+            return false;
+
+        bool originalVerUsuario = VerUsuario;
+        bool originalVerUsuarioFormulario = VerUsuarioFormulario;
+        bool originalVerUsuarioPermisos = VerUsuarioPermisos;
+        bool originalVerSeguridad = VerSeguridad;
+
+
+        VerUsuario = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.Usuarios);
+        VerUsuarioFormulario = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.UsuarioFormulario);
+        VerUsuarioPermisos = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.UsuarioPermisos);
+        VerSeguridad = VerUsuario || VerUsuarioFormulario || VerUsuarioPermisos;
+
+
+        return
+            originalVerUsuario != VerUsuario ||
+            originalVerUsuarioFormulario != VerUsuarioFormulario ||
+            originalVerUsuarioPermisos != VerUsuarioPermisos ||
+            originalVerSeguridad != VerSeguridad;
+    }
+
+    protected override void OnInitialized()
+    {
+        AuthenticationService.OnChange -= HandleAuthStateChanged;
+        AuthenticationService.OnChange += HandleAuthStateChanged;
+    }
+
+    private async void HandleAuthStateChanged()
+    {
+        // InvokeAsync(StateHasChanged);
+        await RefreshAuthenticationState();
+    }
+
+    public void Dispose()
+    {
+        AuthenticationService.OnChange -= HandleAuthStateChanged;
+    }
+
+    [JSInvokable]
+    public void ActualizarIconMenu(int width)
+    {
+        bool nuevoIconMenu = width <= 768;
+        if (IconMenu != nuevoIconMenu)
+        {
+            IconMenu = nuevoIconMenu;
+            StateHasChanged();
+        }
+    }
+}

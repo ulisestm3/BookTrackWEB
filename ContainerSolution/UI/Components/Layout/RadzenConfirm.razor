@@ -1,0 +1,25 @@
+﻿@inject DialogService DialogService
+
+<div style="padding: 1.5rem; text-align: center; max-width: 400px;">
+    <RadzenIcon Icon="help_outline" Style="font-size: 4rem; color: #1e3a8a;" />
+    <RadzenHeading Size="5" Text="@Title" Style="margin-top: 1rem; color: #1e3a8a;" />
+    <p style="@StyleMessage">@Message</p>
+
+    <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 2rem;">
+        <RadzenButton Text="Aceptar"
+                      Style="background-color: #1e3a8a; color: white;"
+                      Click="() => DialogService.Close(true)" />
+
+        <RadzenButton Text="Cancelar"
+                      Style="background-color: #e5e7eb; color: #1f2937;"
+                      Click="() => DialogService.Close(false)" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Confirmación";
+    [Parameter] public string Message { get; set; } = "¿Desea continuar?";
+    [Parameter] public eAlign eAlign { get; set; } = eAlign.center;
+
+    public string StyleMessage => $"margin-top: 1rem; text-align: {eAlign}; font-size: 1rem; line-height: 1.6; color: #374151; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;";
+}

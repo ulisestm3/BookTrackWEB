@@ -1,0 +1,304 @@
+﻿@rendermode InteractiveServer
+@page "/UsuarioPermisos"
+@layout MainLayout
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IvUsuariosController vUsuariosController
+@inject IUsuarioPermisosSPController UsuarioPermisosSPController
+@inject IPermisoFormularioController PermisoFormularioController
+@inject IUsuarioPermisosController UsuarioPermisosController
+@inject IFormulariosController FormulariosController
+
+
+<style>
+    .titulo-azulblack {
+        color: darkblue !important;
+        text-align: left !important;
+    }
+
+    .text-danger {
+        color: red;
+    }
+
+    .text-normal {
+        color: black;
+    }
+</style>
+@if (isAuthenticated)
+{
+    <RadzenRow>
+        <RadzenColumn>
+            <RadzenDropDown TValue="short?"
+                            @bind-Value="UserDropSelected"
+                            Data="@UsersDrop"
+                            TextProperty="Login"
+                            ValueProperty="IdUsuario"
+                            Change="OnUserChanged"
+                            Placeholder="Seleccione un Usuario"
+                            Style="width:100%;"
+                            AllowFiltering="true"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            AllowVirtualization="true" />
+        </RadzenColumn>
+        <RadzenColumn>
+            <RadzenDropDown TValue="byte?"
+                            @bind-Value="FormDropSelected"
+                            Data="@FormsDrop"
+                            TextProperty="Formulario"
+                            ValueProperty="IdFormulario"
+                            Change="OnFormsChanged"
+                            Placeholder="Seleccione un Formulario"
+                            Style="width:100%;"
+                            AllowFiltering="true"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            AllowVirtualization="true" />
+        </RadzenColumn>
+        <RadzenColumn>
+            <RadzenButton ButtonStyle="ButtonStyle.Success"
+                          Icon="add_circle_outline"
+                          Text="Guardar"
+                          Click="Save" />
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenStack Orientation="Orientation.Horizontal" Style="margin-top:20px">
+        <RadzenDataGrid @ref=Grid Data="Data"
+                        TItem="UsuarioPermisosSP"
+                        AllowFiltering="true"
+                        AllowPaging="true"
+                        AllowSorting="true"
+                        AllowColumnResize="true"
+                        ColumnWidth="150px"
+                        Density="Density.Default"
+                        PageSize="5"
+                        Responsive="true"
+                        EditMode="DataGridEditMode.Single"
+                        EmptyText="Sin registros para mostrar"
+                        ShowPagingSummary="true"
+                        PageSizeOptions=@PageSizeOptions
+                        PagingSummaryFormat=@PagingSummaryFormat
+                        PageSizeText="Registros por página"
+                        ClearFilterText="Borrar"
+                        ApplyFilterText="Aplicar"
+                        FilterText="Filtro"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        FilterMode="FilterMode.Simple">
+            <Columns>
+                <RadzenDataGridColumn Property="@nameof(UsuarioPermisosSP.Permiso)" Title="Permisos" />
+                <RadzenDataGridColumn Property="@nameof(UsuarioPermisosSP.TienePermiso)" Title="Acceso">
+                    <Template Context="item">
+                        <RadzenCheckBox @bind-Value="item.TienePermiso" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+<RadzenDialog />
+@code {
+    private RadzenDataGrid<UsuarioPermisosSP>? Grid { get; set; }
+    private IEnumerable<UsuarioPermisosSP>? Data { get; set; }
+    private IEnumerable<int> PageSizeOptions { get; set; } = new[] { 2, 5, 10, 100 };
+    public string PagingSummaryFormat { get; set; } = "Página {0} de {1} (Total {2} Registros)";
+
+    private IEnumerable<vUsuarios>? UsersDrop { get; set; }
+    private short? UserDropSelected { get; set; }
+
+    private IEnumerable<Formularios>? FormsDrop { get; set; }
+    private byte? FormDropSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GridLoad(UserDropSelected, FormDropSelected);
+        await UsersDropLoad();
+        await FormsDropLoad();
+    }
+
+    private async Task GridLoad(short? User, byte? IdForm)
+    {
+
+        Data = await UsuarioPermisosSPController.Lista(User, IdForm);
+    }
+    private async Task UsersDropLoad()
+    {
+        UsersDrop = await vUsuariosController.Lista();
+    }
+    private async Task FormsDropLoad()
+    {
+        FormsDrop = await FormulariosController.Lista();
+    }
+    private async Task OnUserChanged(object value)
+    {
+        await RefreshAuthenticationState();
+        UserDropSelected = (short?)value;
+        await GridLoad(UserDropSelected, FormDropSelected);
+    }
+    private async Task OnFormsChanged(object value)
+    {
+        await RefreshAuthenticationState();
+        FormDropSelected = (byte?)value;
+        await GridLoad(UserDropSelected, FormDropSelected);
+    }
+    private async Task Save()
+    {
+        try
+        {
+            if (UserDropSelected > 0 && FormDropSelected > 0)
+            {
+                if (Data != null && Data.Any())
+                {
+                    await RefreshAuthenticationState();
+                    Usuarios User = await AutenticationServices.GetAuthenticatedUser();
+                    if (User != null)
+                    {
+                        List<UsuarioPermisos> Collection = new();
+                        List<PermisoFormulario> permisoFormulario = await PermisoFormularioController.Lista(FormDropSelected);
+                        if (permisoFormulario.Any())
+                        {
+                            foreach (var item in Data)
+                            {
+                                var result = permisoFormulario.Where(a => a.IdPermiso == item.IdPermiso && a.IdFormulario == FormDropSelected).SingleOrDefault();
+                                if (result is null || !(result.IdPermisoFormulario > 0))
+                                {
+                                    await RadzenMessages.ShowAlert(DialogService, "El Formulario Seleccionado no tiene asociado uno de los permisos", eIcon.warning);
+                                    break;
+                                }
+                                UsuarioPermisos Entidad = new();
+                                Entidad.IdUsuario = (short)UserDropSelected;
+                                Entidad.IdPermisoFormulario = result.IdPermisoFormulario;
+                                Entidad.Activo = item.TienePermiso;
+                                Entidad.UsuarioRegistra = User.IdUsuario;
+                                Entidad.FechaRegistro = DateTime.Now;
+                                Entidad.UsuarioActualiza = User.IdUsuario;
+                                Entidad.FechaActualizacion = User.FechaActualizacion;
+                                Collection.Add(Entidad);
+
+                            }
+                            if (UserDropSelected == User.IdUsuario && FormDropSelected == (byte)eFormularios.UsuarioPermisos)
+                            {
+                                var Confirm = await RadzenMessages.ConfirmAsync(DialogService, "Estimado usuario, esta realizando cambios a los permisos de su usuario, sobre el formulario actual, Si continua podrá perder permisos para realizar acciones. ¿Desea Continuar?", "Confirmación", eAlign.justify);
+                                if (!Confirm)
+                                {
+                                    await GridLoad(UserDropSelected, FormDropSelected);
+                                    return;
+                                }
+                            }
+
+                            if (await UsuarioPermisosController.InsertOrUpdateUsuarioPermisosAsync(Collection))
+                            {
+                                await RadzenMessages.ShowAlert(DialogService, "Permisos actualizados con exito", eIcon.success);
+                                await GridLoad(UserDropSelected, FormDropSelected);
+                                AutenticationServices.NotifyChanged();
+                                await RefreshAuthenticationState();
+                                StateHasChanged();
+                                return;
+                            }
+                            await RadzenMessages.ShowAlert(DialogService, "Error al actualizar los permisos", eIcon.error);
+                            return;
+                        }
+                        await RadzenMessages.ShowAlert(DialogService, "El Formulario Seleccionado no tiene permisos asociados", eIcon.warning);
+                    }
+                }
+            }
+            await RadzenMessages.ShowAlert(DialogService, "Seleccione un usuario y formulario", eIcon.warning);
+        }
+        catch (Exception Ex)
+        {
+            await RadzenMessages.ShowAlert(DialogService, Ex.Message, eIcon.error);
+        }
+    }
+}
+
+
+<!-- #Seguridad -->
+@code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.UsuarioPermisos;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+}
+<!-- #endregion -->

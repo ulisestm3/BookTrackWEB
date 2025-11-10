@@ -1,0 +1,135 @@
+﻿@page "/"
+@layout LoginLayout
+@rendermode InteractiveServer
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+@inject IParametrosController ParametrosController
+
+
+<RadzenCard Style="max-width: 400px; margin: auto; margin-top: 6rem; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 1rem;">
+    <RadzenStack Orientation="Orientation.Vertical" Gap="20px" AlignItems="AlignItems.Center">
+
+        <RadzenImage Path="./images/BKTLogo.jpg" Width="150px" Height="150px" Style="border-radius: 10px;" />
+
+        <RadzenHeading Size="3" Text="Iniciar Sesión" Style="text-align:center;" />
+
+        <RadzenTextBox @bind-Value="UserName" Placeholder="Usuario" Name="UserName" Style="width:100%;" />
+
+        <RadzenPassword @bind-Value="Pass" Placeholder="Contraseña" Name="Password" Style="width:100%;" />
+
+        <RadzenButton Text="Entrar" Icon="login" ButtonStyle="ButtonStyle.Primary" Style="width:100%;" Click="IniciarSesion" />
+
+@*         <RadzenLink Text="¿Olvidaste tu contraseña?" @onclick="AbrirModalRecuperacion" Style="text-align:center; color:#007bff; text-decoration:none; cursor:pointer;" />
+ *@
+        <p style="text-align:center; color: gray; font-size: small;">
+            &copy; ALLDevSolutions 2025
+        </p>
+
+    </RadzenStack>
+</RadzenCard>
+<RadzenDialog />
+
+@code {
+    public string UserName { get; set; } = "";
+    public string Pass { get; set; } = "";
+    public byte[]? Password { get; set; }
+
+    private async Task<bool> Validaciones()
+    {
+        if (string.IsNullOrEmpty(UserName) || string.IsNullOrWhiteSpace(UserName))
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Ingrese el nombre del usuario de sistema", eIcon.warning);
+            return false;
+        }
+        if (UserName.Length > 20)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Las credenciales ingresadas no son correctas.", eIcon.warning);
+            return false;
+        }
+        if (string.IsNullOrEmpty(Pass) || string.IsNullOrWhiteSpace(Pass))
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Ingrese su Contraseña", eIcon.warning);
+            return false;
+        }
+        return true;
+    }
+    private async void IniciarSesion()
+    {
+        if (await Validaciones())
+        {
+            Password = SHA.Sha256(Pass);
+
+            if (!await AuthenticationController.Existe(UserName))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Las credenciales ingresadas no son correctas.", eIcon.warning);
+                return;
+            }
+
+            Usuarios User = await AuthenticationController.Registro(UserName);
+            if (User.Bloqueado)
+            {
+                await RadzenMessages.ShowAlert(DialogService, "La cuenta fue bloqueada por múltiples intentos fallidos de inicio de sesión. Comunicarse con el administrador del sistema.", eIcon.warning);
+                return;
+            }
+
+            if (!await AuthenticationController.Existe(UserName, Password))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Las credenciales ingresadas no son correctas.", eIcon.warning);
+                BloqueoCuenta(UserName);
+                return;
+            }
+            var result = await AutenticationServices.Authenticate(User);
+            if (result)
+            {
+                NM.NavigateTo("/home");
+            }
+        }
+    }
+    private async void BloqueoCuenta(string UserName)
+    {
+        try
+        {
+            Usuarios User = await AuthenticationController.Registro(UserName);
+            var MaxBloqueoCuenta = await ParametrosController.Registro((byte)eParametros.BoqueoCuenta);
+            if (User.Intentos >= (GRAL.ValidateByte(MaxBloqueoCuenta.Valor) - 1))
+            {
+                if (await AuthenticationController.BloquearCuenta(UserName))
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "La cuenta fue bloqueada por múltiples intentos fallidos de inicio de sesión. Comunicarse con el administrador del sistema.", eIcon.warning);
+                    return;
+                }
+            }
+
+            if (await AuthenticationController.SumarIntento(UserName))
+            {
+                await RadzenMessages.ShowAlert(DialogService, $"Si excede el máximo de intentos permitidos ({MaxBloqueoCuenta.Valor}), su cuenta será bloqueada", eIcon.warning);
+                return;
+            }
+        }
+        catch
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Ocurrio un error al intentar validar el bloqueo de la cuenta", eIcon.warning);
+        }
+    }
+    private async Task AbrirModalRecuperacion()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<RecoveryPass.RecoveryPass>("Restablecer Contraseña", parameter, dialogOption);
+    }
+}

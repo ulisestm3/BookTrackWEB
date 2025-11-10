@@ -1,0 +1,415 @@
+﻿@page "/Users"
+@layout MainLayout
+@rendermode InteractiveServer
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IPasswordUtility PasswordUtility
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IvUsuariosController vUsuariosController
+@inject IUsuariosController UsuariosController
+
+
+<style>
+    .titulo-azul {
+    color: darkblue !important;
+    text-align: center;
+    }
+</style>
+
+
+@if (isAuthenticated)
+{
+
+    <h2 class="titulo-azul">ADMINISTRACIÓN DE USUARIOS</h2>
+
+    <RadzenDataGrid @ref="Grid"
+    Data="Data"
+    TItem="vUsuarios"
+    AllowFiltering="true"
+    AllowPaging="true"
+    AllowSorting="true"
+    AllowColumnResize="true"
+    ColumnWidth="150px"
+    Density="Density.Default"
+    PageSize="5"
+    Responsive="true"
+    EditMode="DataGridEditMode.Single"
+    EmptyText="Sin registros para mostrar"
+    ShowPagingSummary="true"
+    PageSizeOptions=@PageSizeOptions
+    PagingSummaryFormat=@PagingSummaryFormat
+    PageSizeText="Registros por página"
+    ClearFilterText="Borrar"
+    ApplyFilterText="Aplicar"
+    FilterText="Filtro"
+    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+    FilterMode="FilterMode.Simple">
+
+        <HeaderTemplate>
+            <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle" Text="Agregar" Click="@InsertRow" />
+        </HeaderTemplate>
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(vUsuarios.NombreCompleto)" Title="Nombre Completo">
+                <EditTemplate Context="vUsuario">
+                    <RadzenTextBox @bind-Value=vUsuario.NombreCompleto />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn Property="@nameof(vUsuarios.Correo)" Title="Correo">
+                <EditTemplate Context="vUsuario">
+                    <RadzenTextBox @bind-Value=vUsuario.Correo />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn Property="@nameof(vUsuarios.Celular)" Title="Celular">
+                <EditTemplate Context="vUsuario">
+                    <RadzenTextBox @bind-Value=vUsuario.Celular />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn Property="@nameof(vUsuarios.Login)" Title="Login">
+                <EditTemplate Context="vUsuario">
+                    <RadzenTextBox @bind-Value=vUsuario.Login />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn Property="@nameof(vUsuarios.Bloq)" Title="Bloqueado" />
+            <RadzenDataGridColumn Property="@nameof(vUsuarios.Intentos)" Title="Intentos Fallidos" />
+            <RadzenDataGridColumn Context="vUsuarios" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Frozen="true" FrozenPosition="FrozenColumnPosition.Right">
+                <Template Context="vUsuarios">
+                    <RadzenButton title="Desbloquear Cuenta" Disabled="@(!Update || !vUsuarios.Bloqueado)" Icon="Lock_Open" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(a=>DesbloquearCuenta(vUsuarios))" @onclick:stopPropagation="true" />
+                    <RadzenButton title="Cambiar Contraseña" Disabled="@(!Update)" Icon="Password" ButtonStyle="ButtonStyle.Warning" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(a=>ResetPassword(vUsuarios))" @onclick:stopPropagation="true" />
+                    <RadzenButton Disabled="@(!Update)" Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(a=>EditRow(vUsuarios))" @onclick:stopPropagation="true" />
+                    <RadzenButton Disabled="@(!Delete)" ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="rz-my-1 rz-ms-1" Click="@(x=>DeleteRow(vUsuarios))" @onclick:stopPropagation="true" />
+                </Template>
+                <EditTemplate Context="vUsuarios">
+                    <RadzenButton Disabled="@(!Insert && !Update)" Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" aria-label="Save" Click="@(x=>SaveRow(vUsuarios))" />
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" class="rz-my-1 rz-ms-1" aria-label="Cancel" Click="@(x=>CancelEdit(vUsuarios))" />
+                    <RadzenButton Disabled="@(!Delete)" ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Click="@(x=>DeleteRow(vUsuarios))" class="rz-my-1 rz-ms-1" aria-label="Delete" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+<RadzenDialog />
+
+
+@code {
+    protected RadzenDataGrid<vUsuarios>? Grid { get; set; }
+    protected IEnumerable<vUsuarios>? Data { get; set; }
+    protected IEnumerable<int> PageSizeOptions { get; set; } = new[] { 2, 5, 10, 100 };
+    protected string PagingSummaryFormat { get; set; } = "Página {0} de {1} <b>(Total {2} Registros)</b>";
+
+    public string PasswordTemporal { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGrid();
+    }
+    private async Task LoadGrid()
+    {
+        Data = await vUsuariosController.Lista();
+        StateHasChanged();
+    }
+    //Inserta una nueva fila vacia
+    async Task InsertRow()
+    {
+        await RefreshAuthenticationState();
+        if (Grid != null)
+            await Grid.InsertRow(new());
+    }
+    //Edita una fila existente
+    async Task EditRow(vUsuarios Entidad)
+    {
+        await RefreshAuthenticationState();
+        if (Grid != null)
+            await Grid.EditRow(Entidad);
+    }
+    //Cancela la edicion del grid
+    async void CancelEdit(vUsuarios Entidad)
+    {
+        // if (Grid != null)
+        Grid.CancelEditRow(Entidad);
+        await LoadGrid();
+    }
+    //Guarda una fila nueva o una que fue editada
+    async Task SaveRow(vUsuarios Entidad)
+    {
+        await RefreshAuthenticationState();
+        if (Entidad.IdUsuario > 0)
+        {
+            if (Data.Contains(Entidad))
+            {
+                if (await Validar(Entidad))
+                {
+                    var result = await UsuariosController.Update(await MapToEntity(Entidad, Update: true));
+                    if (result)
+                    {
+                        await RadzenMessages.ShowAlert(DialogService, "Registro actualizado con exito", eIcon.success);
+                        await LoadGrid(); // Recarga los datos del grid
+                        Grid.CancelEditRow(Entidad); // Cancela la edición del nuevo registro
+                        await Grid.Reload(); // Vuelve a cargar el grid
+                        return;
+                    }
+                    await RadzenMessages.ShowAlert(DialogService, "El registro no fue actualizado", eIcon.error);
+                    return;
+                }
+            }
+            else
+            {
+                Grid.CancelEditRow(Entidad);
+                await Grid.Reload();
+            }
+        }
+        if (Entidad.IdUsuario == 0)
+        {
+            if (await Validar(Entidad))
+            {
+                var Registro = await UsuariosController.Insert(await MapToEntity(Entidad, Insert: true));
+                if (Registro.IdUsuario > 0)
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "Registro agregado con éxito", eIcon.success);
+                    await LoadGrid(); // Recarga los datos del grid
+                    Grid.CancelEditRow(Entidad); // Cancela la edición del nuevo registro
+                    await Grid.Reload(); // Vuelve a cargar el grid
+                    GRAL.EnviarCorreo("sistema@sim.com", Entidad.Correo, "Contraseña", $"Su usuario de sistema es: {Entidad.Login} y su contraseña es: {PasswordTemporal}");
+                    return;
+                }
+                await RadzenMessages.ShowAlert(DialogService, "El registro no se agregó", eIcon.error);
+            }
+        }
+    }
+    async Task DeleteRow(vUsuarios Entidad)
+    {
+        await RefreshAuthenticationState();
+        var confirmResult = await RadzenMessages.ConfirmAsync(DialogService, "¿Estás seguro de eliminar este registro?", "Confirmación de eliminación");
+        if (confirmResult == true)
+        {
+            if (Data.Contains(Entidad))
+            {
+                var result = await UsuariosController.Anular(await MapToEntity(Entidad, Update: true));
+                if (result)
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "Registro eliminado con éxito");
+                    await LoadGrid();
+                    await Grid.RefreshDataAsync();
+                    return;
+                }
+                await RadzenMessages.ShowAlert(DialogService, "El registro no fue eliminado", eIcon.error);
+                return;
+            }
+            else
+            {
+                Grid.CancelEditRow(Entidad);
+                await Grid.Reload();
+            }
+        }
+        else  // Si el usuario hace clic en "No"
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Operación cancelada", eIcon.info);
+        }
+    }
+    private async Task<Usuarios> MapToEntity(vUsuarios Entidad, bool Insert = false, bool Update = false)
+    {
+        Usuarios Tabla = new();
+        Tabla.IdUsuario = Entidad.IdUsuario;
+        Tabla.NombreCompleto = Entidad.NombreCompleto;
+        Tabla.Correo = Entidad.Correo;
+        Tabla.Celular = Entidad.Celular;
+        Tabla.Login = Entidad.Login;
+        Tabla.Bloqueado = false;
+        Tabla.Intentos = 0;
+        Tabla.Activo = true;
+
+        var User = await AutenticationServices.GetAuthenticated();
+        if (User != null && User.IdUsuario > 0 && (Insert || Update))
+        {
+            if (Insert)
+            {
+                PasswordTemporal = PasswordUtility.GetPassword(8);
+                Tabla.Password = SHA.Sha256(PasswordTemporal);
+                Tabla.UsuarioRegistra = User.IdUsuario;
+                Tabla.FechaRegistro = DateTime.Now;
+            }
+            if (Update)
+            {
+                Tabla.UsuarioActualiza = User.IdUsuario;
+                Tabla.FechaActualizacion = DateTime.Now;
+            }
+            return Tabla;
+        }
+        return new();
+    }
+    private async Task<bool> Validar(vUsuarios Entidad)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(Entidad.NombreCompleto) || string.IsNullOrWhiteSpace(Entidad.NombreCompleto))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ingrese el nombre completo del usuario", eIcon.warning);
+                return false;
+            }
+            if (string.IsNullOrEmpty(Entidad.Correo) || string.IsNullOrWhiteSpace(Entidad.Correo))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ingrese el correo del usuario", eIcon.warning);
+                return false;
+            }
+            if (!GRAL.ValidateEmail(Entidad.Correo))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ingrese un correo válido", eIcon.warning);
+                return false;
+            }
+            if (string.IsNullOrEmpty(Entidad.Celular) || string.IsNullOrWhiteSpace(Entidad.Celular))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ingrese el celular del usuario", eIcon.warning);
+                return false;
+            }
+            if (string.IsNullOrEmpty(Entidad.Login) || string.IsNullOrWhiteSpace(Entidad.Login))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ingrese el login del usuario", eIcon.warning);
+                return false;
+            }
+
+            if (await UsuariosController.ValidateLogin(Entidad.IdUsuario, Entidad.Login))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Login ingresado ya existe, favor ingrese uno distinto", eIcon.warning);
+                return false;
+            }
+            return true;
+        }
+        catch (Exception e)
+        {
+            await RadzenMessages.ShowAlert(DialogService, e.Message, eIcon.error);
+            return false;
+        }
+    }
+    private async Task ResetPassword(vUsuarios Entidad)
+    {
+        Usuarios User = await MapToEntity(Entidad, Update: true);
+        if (User != null)
+        {
+            var parameters = new Dictionary<string, object>();
+            var options = new DialogOptions();
+
+            parameters.Add("User", User);
+            options.Width = "500px";
+            options.Height = "300px";
+
+            var result = await DialogService.OpenAsync<ChangedPassword>("Cambiar Contraseña", parameters, options);
+            if (result)
+            {
+                var Upd = await UsuariosController.UpdatePassword(User);
+                if (Upd)
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "Contraseña actualizada con exito", eIcon.success);
+                    return;
+                }
+            }
+        }
+        await RadzenMessages.ShowAlert(DialogService, "La contraseña no fue actualizada", eIcon.error);
+    }
+    private async Task DesbloquearCuenta(vUsuarios Entidad)
+    {
+        var result = await AuthenticationController.DesbloquearCuenta(Entidad);
+        if (result)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Cuenta desbloqueada con exito",eIcon.success);
+            await LoadGrid();
+            await Grid.Reload();
+            return;
+        }
+        await RadzenMessages.ShowAlert(DialogService, "La cuenta no fue desbloqueada", eIcon.error);
+    }
+}
+
+<!-- #Seguridad -->
+    @code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.Usuarios;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+    }
+<!-- #endregion -->

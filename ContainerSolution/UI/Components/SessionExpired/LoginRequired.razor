@@ -1,0 +1,46 @@
+﻿@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+@inject IParametrosController ParametrosController
+
+<RadzenStack>
+    <RadzenTextBox @bind-value="Login" Placeholder="Usuario" />
+    <RadzenPassword @bind-Value="Password" Placeholder="Contraseña" Style="width: 100%;" />
+    <RadzenStack Orientation="Orientation.Horizontal">
+        <RadzenButton Text="Cancelar" Click="()=> SesionClose(DialogService)" ButtonStyle="ButtonStyle.Light" />
+        <RadzenButton Text="Iniciar Sesión" Click="()=> ValidateLogin(DialogService)" ButtonStyle="ButtonStyle.Primary" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+
+    private async Task<bool> ValidateLogin(DialogService ds)
+    {
+        if (await AuthenticationController.Existe(Login, SHA.Sha256(Password)))
+        {
+            if (await AutenticationServices.Authenticate(await AuthenticationController.Registro(Login)))
+            {
+                ds.Close(true);
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            NM.NavigateTo("/");
+            return false;
+        }
+    }
+    private void SesionClose(DialogService ds)
+    {
+        ds.Close();
+        NM.NavigateTo("/");
+    }
+}

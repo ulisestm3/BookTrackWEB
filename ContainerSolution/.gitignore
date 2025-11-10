@@ -1,0 +1,29 @@
+# Archivos de Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build outputs
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+
+# Publicación
+publish/
+dist/
+out/
+
+# Archivos temporales
+*.tmp
+*.log
+*.cache
+*.pdb
+*.db
+
+# Carpetas generadas por herramientas
+node_modules/
+wwwroot/node_modules/
+
+# Configuracion local
+appsettings.Development.json

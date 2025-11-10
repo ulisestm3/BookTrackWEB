@@ -1,0 +1,160 @@
+﻿@rendermode InteractiveServer
+@inherits LayoutComponentBase
+@inject DialogService DialogService
+
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+@inject IParametrosController ParametrosController
+@inject IRadzenMessages RadzenMessages
+
+<RadzenTemplateForm TItem="object" Data="@this" Submit="@RestablecerPassword">
+    <RadzenCard Style="width: 100%; max-width: 500px; margin: auto; padding: 2rem; border-radius: 12px; box-shadow: none; background: white;">
+        <RadzenStack Orientation="Radzen.Orientation.Vertical" Gap="20px" Style="text-align: center;">
+
+            <RadzenHeading Text="Restablecer Contraseña" Size="3" Style="color: #2c3e50;" />
+
+            <RadzenTextBox @bind-Value="UserNameOfRecoveryPassword"
+            Name="UserNameOfRecoveryPassword"
+            Placeholder="Usuario"
+            Style=@GetInputStyle(IsUserInvalid)
+            Change="@(v => ValidateLoginOfRecoveryPassword(v))" />
+            <div style="margin-top:-20px;font-size:10px;color: red; text-align: left; visibility:@((IsUserInvalid ? "visible" : "hidden"));">
+
+                @if (IsUserInvalid)
+                {
+                    @UserError
+                }
+            </div>
+
+            <RadzenTextBox @bind-Value="Correo"
+            Name="Correo"
+            Placeholder="Correo electrónico"
+            Type="email"
+            Style=@GetInputStyle(IsEmailInvalid)
+            Change="@(v => ValidateEmailOfRecoveryPass(v))" />
+            <div style="margin-top:-20px;font-size:10px;color: red; text-align: left; visibility:@((IsEmailInvalid ? "visible" : "hidden"));">
+                @if (IsEmailInvalid)
+                {
+                    @EmailError
+                }
+            </div>
+
+
+
+            <RadzenLabel Text="Se enviará una nueva contraseña al correo asociado."
+            Style="font-size: 0.9rem; color: #555;" />
+
+            <RadzenStack Orientation="Radzen.Orientation.Horizontal" JustifyContent="Radzen.JustifyContent.End" Gap="10px">
+                <RadzenButton Text="Cancelar" ButtonStyle="ButtonStyle.Light" Click="() => DialogService.Close()" />
+                <RadzenButton Text="Enviar" ButtonStyle="ButtonStyle.Primary" Type="Submit" Disabled="@(!string.IsNullOrEmpty(buttonEnabled))" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenTemplateForm>
+
+@code {
+    public string? UserNameOfRecoveryPassword { get; set; }
+    public string? Correo { get; set; }
+    public string? buttonEnabled { get; set; } = "disabled";
+
+    private string? UserError { get; set; }
+    private string? EmailError { get; set; }
+
+    private bool IsUserInvalid => !string.IsNullOrWhiteSpace(UserError);
+    private bool IsEmailInvalid => !string.IsNullOrWhiteSpace(EmailError);
+
+    private void ValidateLoginOfRecoveryPassword(string value)
+    {
+        UserNameOfRecoveryPassword = value;
+        UserError = string.IsNullOrWhiteSpace(value) ? "El usuario no puede estar vacío." : null;
+        UpdateButtonState();
+    }
+
+    private void ValidateEmailOfRecoveryPass(string value)
+    {
+        Correo = value;
+
+        if (string.IsNullOrWhiteSpace(Correo))
+        {
+            EmailError = "El correo no puede estar vacío.";
+        }
+        else if (!GRAL.ValidateEmail(Correo))
+        {
+            EmailError = "Formato de correo inválido.";
+        }
+        else
+        {
+            EmailError = null;
+        }
+
+        UpdateButtonState();
+    }
+
+    private void UpdateButtonState()
+    {
+        buttonEnabled = (string.IsNullOrWhiteSpace(UserError) && string.IsNullOrWhiteSpace(EmailError)) ? "" : "disabled";
+    }
+
+    private void ResetCorreo()
+    {
+        Correo = string.Empty;
+        UserNameOfRecoveryPassword = string.Empty;
+        EmailError = null;
+        UserError = null;
+        buttonEnabled = "disabled";
+    }
+
+    private async void RestablecerPassword()
+    {
+        try
+        {
+            if (await ValidateRecoveryPassword())
+            {
+                string newPassword = "Sim123+";
+                string body = $"Estimado usuario, su nueva contraseña es {newPassword}";
+
+                if (await AuthenticationController.BuscarUsuario(Correo ?? "") != null)
+                {
+                    byte[] Passw = SHA.Sha256(newPassword);
+                    if (await AuthenticationController.UpdatePassword(Passw, Correo ?? "", UserNameOfRecoveryPassword ?? ""))
+                    {
+                        GRAL.EnviarCorreo("mejiam@alldevsolutions.net", Correo, "Restablecimiento Contraseña", body);
+                        await RadzenMessages.ShowAlert(DialogService, "Su nueva contraseña fue enviada al correo proporcionado.",eIcon.success,eAlign.justify,"error");
+                        ResetCorreo();
+                        DialogService.Close();
+                        return;
+                    }
+                    await RadzenMessages.ShowAlert(DialogService, "Su contraseña no pudo ser restablecida, comuníquese con el administrador del sistema.", eIcon.success,eAlign.justify,"Error");
+                }
+                else
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "Usuario no encontrado.", eIcon.warning);
+                }
+            }
+        }
+        catch
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Ocurrió un error al intentar restablecer la contraseña.", eIcon.warning);
+        }
+    }
+
+    private async Task<bool> ValidateRecoveryPassword()
+    {
+        var user = await AuthenticationController.Registro(UserNameOfRecoveryPassword);
+        if (user?.Bloqueado ?? true)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Esta cuenta está bloqueada. Contacte al administrador.", eIcon.warning);
+            return false;
+        }
+
+        return true;
+    }
+    private string GetInputStyle(bool isInvalid)
+    {
+        return isInvalid
+            ? "width: 100%; border-radius: 6px; border: 1px solid red;"
+            : "width: 100%; border-radius: 6px;";
+    }
+}
