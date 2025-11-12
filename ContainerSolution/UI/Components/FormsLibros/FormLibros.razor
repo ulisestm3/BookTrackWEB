@@ -1,0 +1,196 @@
+﻿@page "/CatLibros"
+@layout MainLayout
+@rendermode InteractiveServer
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IPasswordUtility PasswordUtility
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IvUsuariosController vUsuariosController
+@inject IUsuariosController UsuariosController
+@inject ILibrosController LibrosController
+
+
+<style>
+    .titulo-azul {
+        color: darkblue !important;
+        text-align: center;
+    }
+</style>
+
+
+@if (isAuthenticated)
+{
+
+    <h2 class="titulo-azul">ADMINISTRACIÓN DE LIBROS</h2>
+
+    <RadzenDataGrid Data="Librosdata"
+                    TItem="vLibros"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    AllowColumnResize="true"
+                    ColumnWidth="150px"
+                    Density="Density.Default"
+                    PageSize="10"
+                    Responsive="true"
+                    EditMode="DataGridEditMode.Single"
+                    EmptyText="Sin registros para mostrar"
+                    ShowPagingSummary="true"
+                    PageSizeOptions=@PageSizeOptions
+                    PagingSummaryFormat=@PagingSummaryFormat
+                    PageSizeText="Registros por página"
+                    ClearFilterText="Borrar"
+                    ApplyFilterText="Aplicar"
+                    FilterText="Filtro"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    FilterMode="FilterMode.Simple">
+
+        <HeaderTemplate>
+            <RadzenButton ButtonStyle="ButtonStyle.Success"
+                          Disabled="!(Insert)"
+                          Icon="add_circle"
+                          Text="Agregar"
+                          Click="@(() => NM.NavigateTo("/libros/nuevo"))" />
+        </HeaderTemplate>
+
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(vLibros.LibroId)" Title="ID" Visible=false SortOrder="SortOrder.Descending" />
+
+            <RadzenDataGridColumn TItem="vLibros" Property="TituloLibro" Title="Título" />
+            <RadzenDataGridColumn TItem="vLibros" Property="Autor" Title="Autor" />
+            <RadzenDataGridColumn TItem="vLibros" Property="Categoria" Title="Categoría" />
+            <RadzenDataGridColumn TItem="vLibros" Property="ISBN" Title="ISBN" />
+
+            <RadzenDataGridColumn TItem="vLibros" Title="Acciones" Width="200px" Frozen="true" FrozenPosition="FrozenColumnPosition.Left">
+                <Template Context="libros">
+                    <RadzenButton Text=""
+                                  Icon="edit"
+                                  Size="ButtonSize.Small"
+                                  Disabled="!(Update)"
+                                  Click="@(a => NM.NavigateTo($"/libros/{libros.LibroId}"))"
+                                  @onclick:stopPropagation="true"
+                                  Style="margin-right: 5px;" />
+
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+<RadzenDialog />
+
+
+@code {
+
+    private List<vLibros> Librosdata = new();
+    protected IEnumerable<int> PageSizeOptions { get; set; } = new[] { 2, 5, 10, 100 };
+    protected string PagingSummaryFormat { get; set; } = "Página {0} de {1} (Total {2} Registros)";
+
+    public string PasswordTemporal { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGrid();
+    }
+    private async Task LoadGrid()
+    {
+        Librosdata = await LibrosController.vLibrosLista();
+        StateHasChanged();
+    }
+   
+}
+
+<!-- #Seguridad -->
+@code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.CatLibros;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+}
+<!-- #endregion -->
