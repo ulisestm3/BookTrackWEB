@@ -18,8 +18,13 @@ namespace DAL
 		public DbSet<UsuarioFormularios> UsuarioFormularios { get; set; }
 		public DbSet<PermisoFormulario> PermisoFormulario { get; set; }
 		public DbSet<UsuarioPermisos> UsuarioPermisos { get; set; }
+        public DbSet<Autores> Autores { get; set; }
+        public DbSet<Socios> Socios { get; set; }
+        public DbSet<Categorias> Categorias { get; set; }
+        public DbSet<EstadoLibros> EstadoLibros { get; set; }
+        public DbSet<Libros> Libros { get; set; }
         #endregion DBSETS_TABLAS
-        
+
 
 
         #region DBSETS_VISTAS
@@ -27,6 +32,7 @@ namespace DAL
 		public DbSet<vFormulariosUsuario> vFormulariosUsuario { get; set; }
 		public DbSet<vPermisosUsuario> vPermisosUsuario { get; set; }
 		public DbSet<vUsuarioFormularios> vUsuarioFormularios { get; set; }
+		public DbSet<vLibros> vLibros { get; set; }
         #endregion DBSETS_VISTAS
 
 

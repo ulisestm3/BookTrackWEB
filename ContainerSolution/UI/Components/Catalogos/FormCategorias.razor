@@ -1,0 +1,348 @@
+﻿@page "/CatCategorias"
+@layout MainLayout
+@rendermode InteractiveServer
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IPasswordUtility PasswordUtility
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IvUsuariosController vUsuariosController
+@inject IUsuariosController UsuariosController
+@inject ICategoriasController CategoriasController
+
+
+<style>
+    .titulo-azul {
+        color: darkblue !important;
+        text-align: center;
+    }
+</style>
+
+
+@if (isAuthenticated)
+{
+
+    <h2 class="titulo-azul">ADMINISTRACIÓN DE CATEGORIAS</h2>
+
+    <RadzenDataGrid @ref="Grid"
+                    Data="Data"
+                    TItem="Categorias"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    AllowColumnResize="true"
+                    ColumnWidth="150px"
+                    Density="Density.Default"
+                    PageSize="10"
+                    Responsive="true"
+                    EditMode="DataGridEditMode.Single"
+                    EmptyText="Sin registros para mostrar"
+                    ShowPagingSummary="true"
+                    PageSizeOptions=@PageSizeOptions
+                    PagingSummaryFormat=@PagingSummaryFormat
+                    PageSizeText="Registros por página"
+                    ClearFilterText="Borrar"
+                    ApplyFilterText="Aplicar"
+                    FilterText="Filtro"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    FilterMode="FilterMode.Simple">
+
+        <HeaderTemplate>
+            <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle" Text="Agregar" Click="@InsertRow" Disabled="!(Insert)" />
+        </HeaderTemplate>
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(Categorias.CategoriaId)" Title="ID" Visible=false SortOrder="SortOrder.Descending" />
+
+            <RadzenDataGridColumn Property="@nameof(Categorias.Categoria)" Title="Categoría">
+                <EditTemplate Context="Categorias">
+                    <RadzenTextBox @bind-Value="Categorias.Categoria"
+                                   MaxLength="100"
+                                   Style="width: 100%; text-transform: uppercase;"
+                                   @oninput="@(e => Categorias.Categoria = (e.Value?.ToString() ?? string.Empty).ToUpper())" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn Property="@nameof(Categorias.Descripcion)" Title="Descripción">
+                <EditTemplate Context="Categorias">
+                    <RadzenTextBox @bind-Value="Categorias.Descripcion"
+                                   MaxLength="255"
+                                   Style="width: 100%; text-transform: uppercase;"
+                                   @oninput="@(e => Categorias.Descripcion = (e.Value?.ToString() ?? string.Empty).ToUpper())" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn Context="Categorias" Title="Acciones" Filterable="false" Sortable="false" TextAlign="TextAlign.Left" Frozen="true" FrozenPosition="FrozenColumnPosition.Right">
+                <Template Context="Categorias">
+                    <RadzenButton Disabled="@(!Update)" Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(a => EditRow(Categorias))" @onclick:stopPropagation="true" />
+                    <RadzenButton Disabled="@(!Delete)" ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="rz-my-1 rz-ms-1" Click="@(x => DeleteRow(Categorias))" @onclick:stopPropagation="true" />
+                </Template>
+                <EditTemplate Context="Categorias">
+                    <RadzenButton Disabled="@(!Insert && !Update)" Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" aria-label="Save" Click="@(x => SaveRow(Categorias))" />
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" class="rz-my-1 rz-ms-1" aria-label="Cancel" Click="@(x => CancelEdit(Categorias))" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+<RadzenDialog />
+
+
+@code {
+    protected RadzenDataGrid<Categorias>? Grid { get; set; }
+    protected IEnumerable<Categorias>? Data { get; set; }
+    protected IEnumerable<int> PageSizeOptions { get; set; } = new[] { 2, 5, 10, 100 };
+    protected string PagingSummaryFormat { get; set; } = "Página {0} de {1} (Total {2} Registros)";
+
+    public string PasswordTemporal { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGrid();
+    }
+    private async Task LoadGrid()
+    {
+        Data = await CategoriasController.Lista();
+        StateHasChanged();
+    }
+    //Inserta una nueva fila vacia
+    async Task InsertRow()
+    {
+        await RefreshAuthenticationState();
+        if (Grid != null)
+            await Grid.InsertRow(new());
+    }
+    //Edita una fila existente
+    async Task EditRow(Categorias Entidad)
+    {
+        await RefreshAuthenticationState();
+        if (Grid != null)
+            await Grid.EditRow(Entidad);
+    }
+    //Cancela la edicion del grid
+    async void CancelEdit(Categorias Entidad)
+    {
+        // if (Grid != null)
+        Grid.CancelEditRow(Entidad);
+        await LoadGrid();
+    }
+    //Guarda una fila nueva o una que fue editada
+    async Task SaveRow(Categorias Entidad)
+    {
+        await RefreshAuthenticationState();
+        if (Entidad.CategoriaId > 0)
+        {
+            if (Data.Contains(Entidad))
+            {
+                if (await Validar(Entidad))
+                {
+                    var result = await CategoriasController.Update(await MapToEntity(Entidad, Update: true));
+                    if (result)
+                    {
+                        await RadzenMessages.ShowAlert(DialogService, "Registro actualizado con exito", eIcon.success);
+                        await LoadGrid(); // Recarga los datos del grid
+                        Grid.CancelEditRow(Entidad); // Cancela la edición del nuevo registro
+                        await Grid.Reload(); // Vuelve a cargar el grid
+                        return;
+                    }
+                    await RadzenMessages.ShowAlert(DialogService, "El registro no fue actualizado", eIcon.error);
+                    return;
+                }
+            }
+            else
+            {
+                Grid.CancelEditRow(Entidad);
+                await Grid.Reload();
+            }
+        }
+        if (Entidad.CategoriaId == 0)
+        {
+            if (await Validar(Entidad))
+            {
+                var Registro = await CategoriasController.Insert(await MapToEntity(Entidad, Insert: true));
+                if (Registro.CategoriaId > 0)
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "Registro agregado con éxito", eIcon.success);
+                    await LoadGrid(); // Recarga los datos del grid
+                    Grid.CancelEditRow(Entidad); // Cancela la edición del nuevo registro
+                    await Grid.Reload(); // Vuelve a cargar el grid
+                    return;
+                }
+                await RadzenMessages.ShowAlert(DialogService, "El registro no se agregó", eIcon.error);
+            }
+        }
+    }
+    async Task DeleteRow(Categorias Entidad)
+    {
+        await RefreshAuthenticationState();
+        var confirmResult = await RadzenMessages.ConfirmAsync(DialogService, "¿Estás seguro de eliminar este registro?", "Confirmación de eliminación");
+        if (confirmResult == true)
+        {
+            if (Data.Contains(Entidad))
+            {
+                var result = await CategoriasController.Anular(await MapToEntity(Entidad, Update: true));
+                if (result)
+                {
+                    await RadzenMessages.ShowAlert(DialogService, "Registro eliminado con éxito");
+                    await LoadGrid();
+                    await Grid.RefreshDataAsync();
+                    return;
+                }
+                await RadzenMessages.ShowAlert(DialogService, "El registro no fue eliminado", eIcon.error);
+                return;
+            }
+            else
+            {
+                Grid.CancelEditRow(Entidad);
+                await Grid.Reload();
+            }
+        }
+        else  // Si el usuario hace clic en "No"
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Operación cancelada", eIcon.info);
+        }
+    }
+    private async Task<Categorias> MapToEntity(Categorias Entidad, bool Insert = false, bool Update = false)
+    {
+        Categorias Tabla = new();
+        Tabla.CategoriaId = Entidad.CategoriaId;
+        Tabla.Categoria = Entidad.Categoria;
+        Tabla.Descripcion = Entidad.Descripcion;
+        Tabla.Activo = Entidad.Activo;
+
+        var User = await AutenticationServices.GetAuthenticated();
+        if (User != null && User.IdUsuario > 0 && (Insert || Update))
+        {
+            if (Insert)
+            {
+                Tabla.UsuarioRegistra = User.IdUsuario;
+                Tabla.FechaRegistro = DateTime.Now;
+            }
+            if (Update)
+            {
+                Tabla.UsuarioActualiza = User.IdUsuario;
+                Tabla.FechaActualizacion = DateTime.Now;
+            }
+            return Tabla;
+        }
+        return new();
+    }
+    private async Task<bool> Validar(Categorias Entidad)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(Entidad.Categoria) || string.IsNullOrWhiteSpace(Entidad.Categoria))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ingrese la Categoria", eIcon.warning);
+                return false;
+            }
+
+
+            if (await CategoriasController.ValidateCategoria(Entidad.CategoriaId, Entidad.Categoria))
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Categoria ingresada ya existe, favor ingrese una distinta", eIcon.warning);
+                return false;
+            }
+            return true;
+        }
+        catch (Exception e)
+        {
+            await RadzenMessages.ShowAlert(DialogService, e.Message, eIcon.error);
+            return false;
+        }
+    }
+}
+
+<!-- #Seguridad -->
+@code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.CatCategorias;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+}
+<!-- #endregion -->

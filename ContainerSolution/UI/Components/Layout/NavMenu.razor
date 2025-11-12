@@ -15,6 +15,13 @@
             <RadzenPanelMenuItem Text="Usuario Formularios" Icon="group" Path="UsuarioFormulario" Visible=@VerUsuarioFormulario />
             <RadzenPanelMenuItem Text="Usuario Permisos" Icon="group" Path="UsuarioPermisos" Visible=@VerUsuarioPermisos />
         </RadzenPanelMenuItem>
+        <RadzenPanelMenuItem Text="Catálogos" Icon="Settings">
+            <RadzenPanelMenuItem Text="Autores" Icon="group" Path="CatAutores" Visible=@VerAutores />
+            <RadzenPanelMenuItem Text="Socios" Icon="group" Path="CatSocios" Visible=@VerSocios />
+            <RadzenPanelMenuItem Text="Categorías" Icon="group" Path="CatCategorias" Visible=@VerCategorias />
+            <RadzenPanelMenuItem Text="Estado Libros" Icon="group" Path="CatEstadoLibros" Visible=@VerEstadoLibros />
+            <RadzenPanelMenuItem Text="Libros" Icon="group" Path="CatLibros" Visible=@VerLibros />
+        </RadzenPanelMenuItem>
     }
 </RadzenPanelMenu>
 
@@ -40,6 +47,11 @@
     public bool VerUsuario { get; set; } = false;
     public bool VerUsuarioFormulario { get; set; } = false;
     public bool VerUsuarioPermisos { get; set; } = false;
+    public bool VerAutores { get; set; } = false;
+    public bool VerSocios { get; set; } = false;
+    public bool VerCategorias { get; set; } = false;
+    public bool VerEstadoLibros { get; set; } = false;
+    public bool VerLibros { get; set; } = false;
 
     private bool isAuthenticated = false;
     private bool isAuthStateVerified = false;
@@ -114,6 +126,12 @@
         VerUsuario = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.Usuarios);
         VerUsuarioFormulario = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.UsuarioFormulario);
         VerUsuarioPermisos = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.UsuarioPermisos);
+        VerAutores = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatAutores);
+        VerSocios = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatSocios);
+        VerCategorias = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatCategorias);
+        VerEstadoLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatEstadoLibros);
+        VerLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatLibros);
+
         VerSeguridad = VerUsuario || VerUsuarioFormulario || VerUsuarioPermisos;
 
 

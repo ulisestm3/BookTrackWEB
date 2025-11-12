@@ -34,7 +34,11 @@ namespace EL
             Usuarios,
             UsuarioFormulario,
             UsuarioPermisos,
-            UsuarioReportes
+            CatEstadoLibros,
+            CatAutores,
+            CatSocios,
+            CatCategorias,
+            CatLibros
         }
         public enum ePermiso
         {
