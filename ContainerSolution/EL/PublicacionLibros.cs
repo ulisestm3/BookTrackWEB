@@ -1,27 +1,19 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EL
 {
-    [Keyless]
-    [Table("vLibros")]
-    public class vLibros
+    [Table("PublicacionLibros")]
+    public class PublicacionLibros
     {
+        [Key]
+        public int PublicacionLibroId { get; set; }
         public int LibroId { get; set; }
-
         [Required]
-        [MaxLength(200)]
-        public string TituloLibro { get; set; }
-        [Required]
-        public int AutorId { get; set; }
-        [MaxLength(150)]
-        public string? Autor { get; set; }
-        [Required]
-        public int CategoriaId { get; set; }
-        [MaxLength(100)]
-        public string? Categoria { get; set; }
+        [MaxLength(20)]
+        public string? ISBN { get; set; }
+        public int? AnioPublicacion { get; set; }
 
         [Required]
         public bool Activo { get; set; }

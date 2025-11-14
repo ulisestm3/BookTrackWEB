@@ -44,15 +44,6 @@
                     <RadzenRequiredValidator Component="TituloLibro" Text="El título es obligatorio." />
                 </RadzenColumn>
 
-                <RadzenColumn Size="6">
-                    <RadzenLabel Text="ISBN:" />
-                    <RadzenTextBox @bind-Value="libro.ISBN"
-                                   Name="ISBN"
-                                   MaxLength="20"
-                                   Style="width:100%; text-transform: uppercase;"
-                                   @oninput="@(e => libro.ISBN = (e.Value?.ToString() ?? string.Empty).ToUpper())"
-                                   Placeholder="Ingrese el ISBN" />
-                </RadzenColumn>
             </RadzenRow>
 
             <RadzenRow>
@@ -64,6 +55,9 @@
                                     @bind-Value="libro.AutorId"
                                     Name="AutorId"
                                     Placeholder="Seleccione un autor"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    AllowVirtualization="true"
                                     Style="width:100%" />
                     <RadzenRequiredValidator Component="AutorId" Text="Debe seleccionar un autor." />
                 </RadzenColumn>
@@ -76,6 +70,9 @@
                                     @bind-Value="libro.CategoriaId"
                                     Name="CategoriaId"
                                     Placeholder="Seleccione una categoría"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    AllowVirtualization="true"
                                     Style="width:100%" />
                     <RadzenRequiredValidator Component="CategoriaId" Text="Debe seleccionar una categoría." />
                 </RadzenColumn>
@@ -138,7 +135,6 @@ else
                     TituloLibro = encontrado.TituloLibro,
                     AutorId = encontrado.AutorId,
                     CategoriaId = encontrado.CategoriaId,
-                    ISBN = encontrado.ISBN,
                     Activo = encontrado.Activo
                 };
             }
@@ -199,6 +195,7 @@ else
         NM.NavigateTo("/CatLibros");
     }
 
+
     private async Task<bool> ValidarLibro()
     {
         if (string.IsNullOrWhiteSpace(libro.TituloLibro))
@@ -226,18 +223,10 @@ else
             return false;
         }
 
-        // Validación existencia ISBN
-        if (!string.IsNullOrWhiteSpace(libro.ISBN))
-        {
-            if (await LibrosController.ExisteISBN(libro.LibroId, libro.ISBN))
-            {
-                await RadzenMessages.ShowAlert(DialogService, "Ya existe un libro con este ISBN.", eIcon.warning);
-                return false;
-            }
-        }
-
         return true;
     }
+
+
 
 
 

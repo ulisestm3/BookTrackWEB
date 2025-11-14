@@ -1,0 +1,324 @@
+﻿@page "/Ejemplares/nuevo"
+@page "/Ejemplares/{EjemplarId:int}"
+
+@layout MainLayout
+@rendermode InteractiveServer
+
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IEjemplaresController EjemplaresController
+@inject IEstadoLibrosController EstadoLibrosController
+@inject IPublicacionLibrosController PublicacionLibrosController
+
+<style>
+    .titulo-azul {
+        color: darkblue !important;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+</style>
+
+@if (isAuthenticated)
+{
+    <h3 class="titulo-azul">@((EsNuevo ? "NUEVO EJEMPLAR" : "EDITAR EJEMPLAR"))</h3>
+
+    <RadzenCard>
+        <RadzenTemplateForm Data="@Ejemplar" Submit="@((Ejemplares e) => Guardar(e))">
+            <RadzenRow>
+
+                <!-- ISBN -->
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="ISBN" />
+                    <RadzenDropDown Data="@opcionesPublicacionLibros"
+                                    TextProperty="ISBN"
+                                    ValueProperty="PublicacionLibroId"
+                                    @bind-Value="Ejemplar.PublicacionLibroId"
+                                    Name="PublicacionLibroId"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    AllowVirtualization="true"
+                                    Style="width:100%" />
+                    <RadzenRequiredValidator Component="PublicacionLibroId" Text="Debe seleccionar un ISBN para el Ejemplar." />
+                </RadzenColumn>
+
+                <!-- Estado del libro -->
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="Estado del Ejemplar" />
+                    <RadzenDropDown Data="@estadoLibros"
+                                    TextProperty="EstadoLibro"
+                                    ValueProperty="EstadoLibroId"
+                                    @bind-Value="Ejemplar.EstadoLibroId"
+                                    Name="EstadoLibroId"
+                                    Placeholder="Seleccione un estado"
+                                    AllowFiltering="true"
+                                    AllowClear="true"
+                                    Style="width:100%" />
+
+                    <RadzenRequiredValidator Component="EstadoLibroId"
+                                             Text="Debe seleccionar un estado." />
+
+                </RadzenColumn>
+            </RadzenRow>
+
+            <RadzenRow>
+
+                <!-- Código de barras -->
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="Código de Barra" />
+                    <RadzenNumeric @bind-Value="Ejemplar.CodigoBarra"
+                                   Name="CodigoBarra"
+                                   MaxLength="50"
+                                   Style="width:100%" />
+                    <RadzenRequiredValidator Component="CodigoBarra" Text="El código es obligatorio." />
+                </RadzenColumn>
+
+            </RadzenRow>
+
+            <RadzenRow>
+
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="Fecha de Adquisición" />
+                    <RadzenDatePicker @bind-Value="Ejemplar.FechaAdquisicion"
+                                      Name="FechaAdquisicion"
+                                      Style="width:100%" />
+                    <RadzenRequiredValidator Component="FechaAdquisicion" Text="La fecha es obligatoria." />
+                </RadzenColumn>
+
+            </RadzenRow>
+
+            <div class="d-flex justify-content-center mt-4">
+                <RadzenButton Text="Guardar"
+                              Icon="save"
+                              ButtonStyle="ButtonStyle.Success"
+                              Type="Submit"
+                              Class="mx-2" />
+
+                <RadzenButton Text="Cancelar"
+                              Icon="close"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Click="@Cancelar"
+                              Class="mx-2" />
+            </div>
+
+        </RadzenTemplateForm>
+    </RadzenCard>
+}
+
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+
+<RadzenDialog />
+
+@code {
+    [Parameter] public int? EjemplarId { get; set; }
+    private bool EsNuevo => !EjemplarId.HasValue || EjemplarId == 0;
+
+    private Ejemplares Ejemplar = new();
+    private List<vPublicacionLibros>? opcionesPublicacionLibros { get; set; }
+
+    private IEnumerable<EstadoLibros>? estadoLibros;
+    private IEnumerable<vPublicacionLibros>? publicacionlibros;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombos();
+
+        if (!EsNuevo)
+        {
+            var encontrado = await EjemplaresController.Registro(EjemplarId.Value);
+
+            if (encontrado != null)
+            {
+                Ejemplar = encontrado;
+            }
+            else
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Ejemplar no encontrado.", eIcon.warning);
+                NM.NavigateTo("/CatEjemplares");
+            }
+        }
+    }
+
+    private async Task CargarCombos()
+    {
+        estadoLibros = await EstadoLibrosController.Lista();
+        publicacionlibros = await PublicacionLibrosController.vPublicacionLibrosLista();
+
+        opcionesPublicacionLibros = publicacionlibros?
+        .Where(e => e.Activo == true)
+        .Select(e =>
+        {
+            e.ISBN = $"{e.ISBN?.Trim()} - {e.TituloLibro?.Trim()} - {e.Autor?.Trim()}";
+            return e;
+        }).ToList();
+    }
+
+    private async Task Guardar(Ejemplares entidad)
+    {
+        var user = await AutenticationServices.GetAuthenticated();
+
+        if (user == null)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Sesión no válida.", eIcon.error);
+            return;
+        }
+
+        var error = await ValidarEjemplar(entidad);
+
+        if (error != null)
+        {
+            await RadzenMessages.ShowAlert(DialogService, error, eIcon.warning);
+            return;
+        }
+
+        bool resultado = false;
+
+        if (EsNuevo)
+        {
+            entidad.Activo = true;
+            entidad.UsuarioRegistra = user.IdUsuario;
+            entidad.FechaRegistro = DateTime.Now;
+
+            await EjemplaresController.Insert(entidad);
+            resultado = true;
+        }
+        else
+        {
+            entidad.UsuarioActualiza = user.IdUsuario;
+            entidad.FechaActualizacion = DateTime.Now;
+
+            resultado = await EjemplaresController.Update(entidad);
+        }
+
+        if (resultado)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                EsNuevo ? "Ejemplar creado correctamente." : "Ejemplar actualizado.",
+                eIcon.success);
+
+            NM.NavigateTo("/CatEjemplares");
+        }
+    }
+
+    private async Task<string?> ValidarEjemplar(Ejemplares entidad)
+    {
+        if (entidad.EstadoLibroId <= 0)
+            return "Debe seleccionar un estado de libro válido.";
+
+        bool existeCodigoBarra = await EjemplaresController
+            .ValidateCodigoBarra(entidad.EjemplarId, entidad.CodigoBarra ?? "");
+
+        if (existeCodigoBarra)
+            return $"El código de barras '{entidad.CodigoBarra}' ya existe.";
+
+        return null;
+    }
+
+
+
+
+
+    private async Task Cancelar()
+    {
+        var confirm = await RadzenMessages.ConfirmAsync(DialogService,
+            "¿Cancelar cambios? Los datos no guardados se perderán.",
+            "Confirmación");
+
+        if (confirm == true)
+            NM.NavigateTo("/CatEjemplares");
+    }
+}
+
+
+<!-- #Seguridad -->
+@code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.CatEjemplares;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+}
+<!-- #endregion -->

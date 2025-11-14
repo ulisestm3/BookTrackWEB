@@ -17,8 +17,6 @@ namespace EL
         public int AutorId { get; set; }
         [Required]
         public int CategoriaId { get; set; }
-        [MaxLength(200)]
-        public string? ISBN { get; set; }
 
         [Required]
         public bool Activo { get; set; }
