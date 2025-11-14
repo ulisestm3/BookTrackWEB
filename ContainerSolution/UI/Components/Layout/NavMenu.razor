@@ -21,6 +21,8 @@
             <RadzenPanelMenuItem Text="Categorías" Icon="group" Path="CatCategorias" Visible=@VerCategorias />
             <RadzenPanelMenuItem Text="Estado Libros" Icon="group" Path="CatEstadoLibros" Visible=@VerEstadoLibros />
             <RadzenPanelMenuItem Text="Libros" Icon="group" Path="CatLibros" Visible=@VerLibros />
+            <RadzenPanelMenuItem Text="Publicaciones Libros" Icon="group" Path="CatPublicacionLibros" Visible=@VerPublicacionLibros />
+            <RadzenPanelMenuItem Text="Ejemplares" Icon="group" Path="CatEjemplares" Visible=@VerEjemplares />
         </RadzenPanelMenuItem>
     }
 </RadzenPanelMenu>
@@ -52,6 +54,8 @@
     public bool VerCategorias { get; set; } = false;
     public bool VerEstadoLibros { get; set; } = false;
     public bool VerLibros { get; set; } = false;
+    public bool VerEjemplares { get; set; } = false;
+    public bool VerPublicacionLibros { get; set; } = false;
 
     private bool isAuthenticated = false;
     private bool isAuthStateVerified = false;
@@ -131,6 +135,8 @@
         VerCategorias = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatCategorias);
         VerEstadoLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatEstadoLibros);
         VerLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatLibros);
+        VerEjemplares = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatEjemplares);
+        VerPublicacionLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatPublicacionLibros);
 
         VerSeguridad = VerUsuario || VerUsuarioFormulario || VerUsuarioPermisos;
 

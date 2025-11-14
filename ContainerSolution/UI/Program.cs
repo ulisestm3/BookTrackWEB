@@ -35,6 +35,8 @@ builder.Services.AddScoped<DAL.ISociosController, DAL.SociosController>();
 builder.Services.AddScoped<DAL.ICategoriasController, DAL.CategoriasController>();
 builder.Services.AddScoped<DAL.IEstadoLibrosController, DAL.EstadoLibrosController>();
 builder.Services.AddScoped<DAL.ILibrosController, DAL.LibrosController>();
+builder.Services.AddScoped<DAL.IEjemplaresController, DAL.EjemplaresController>();
+builder.Services.AddScoped<DAL.IPublicacionLibrosController, DAL.PublicacionLibrosController>();
 
 builder.Services.AddScoped<DAL.IUsuarioFormulariosSPController, DAL.UsuarioFormulariosSPController>();
 builder.Services.AddScoped<DAL.IUsuarioPermisosSPController, DAL.UsuarioPermisosSPController>();

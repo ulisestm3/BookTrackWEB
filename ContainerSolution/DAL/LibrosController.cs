@@ -10,14 +10,13 @@ namespace DAL
         Task<bool> Update(Libros entidad);
         Task<bool> Anular(Libros entidad);
         Task<bool> Existe(int id);
-        Task<Libros> Registro(int Libroid);
+        Task<Libros> Registro(int LibroId);
         Task<List<Libros>> Lista(bool Activo = true);
         Task<List<vLibros>> vLibrosLista();
-        Task<vLibros?> vLibrosPorId(int libroId);
+        Task<vLibros?> vLibrosPorId(int LibroId);
 
         #endregion
         Task<bool> ExisteTitulo(int LibroId, string TituloLibro, int AutorId);
-        Task<bool> ExisteISBN(int LibroId, string ISBN);
     }
     public class LibrosController : ILibrosController
     {
@@ -42,7 +41,6 @@ namespace DAL
                 registro.TituloLibro = entidad.TituloLibro;
                 registro.AutorId = entidad.AutorId;
                 registro.CategoriaId = entidad.CategoriaId;
-                registro.ISBN = entidad.ISBN;
                 registro.Activo = entidad.Activo;
                 registro.UsuarioActualiza = entidad.UsuarioActualiza;
                 registro.FechaActualizacion = entidad.FechaActualizacion;
@@ -70,10 +68,10 @@ namespace DAL
             using var dbContext = db.CreateDbContext();
             return await dbContext.Libros.AnyAsync(a => a.LibroId == id);
         }
-        public async Task<Libros> Registro(int Libroid)
+        public async Task<Libros> Registro(int LibroId)
         {
             using var dbContext = db.CreateDbContext();
-            return await dbContext.Libros.FirstOrDefaultAsync(a => a.LibroId == Libroid) ?? new Libros();
+            return await dbContext.Libros.FirstOrDefaultAsync(a => a.LibroId == LibroId) ?? new Libros();
         }
         public async Task<List<Libros>> Lista(bool Activo = true)
         {
@@ -87,10 +85,10 @@ namespace DAL
             return await dbContext.vLibros.ToListAsync();
         }
 
-        public async Task<vLibros?> vLibrosPorId(int libroId)
+        public async Task<vLibros?> vLibrosPorId(int LibroId)
         {
             using var dbContext = db.CreateDbContext();
-            return await dbContext.vLibros.FirstOrDefaultAsync(l => l.LibroId == libroId);
+            return await dbContext.vLibros.FirstOrDefaultAsync(l => l.LibroId == LibroId);
         }
 
         #endregion
@@ -101,17 +99,6 @@ namespace DAL
                 a.LibroId != LibroId &&
                 a.TituloLibro == TituloLibro &&
                 a.AutorId == AutorId &&
-                a.Activo);
-        }
-
-        public async Task<bool> ExisteISBN(int LibroId, string ISBN)
-        {
-            if (string.IsNullOrWhiteSpace(ISBN)) return false;
-
-            using var dbContext = db.CreateDbContext();
-            return await dbContext.Libros.AnyAsync(a =>
-                a.LibroId != LibroId &&
-                a.ISBN == ISBN &&
                 a.Activo);
         }
 

@@ -1,4 +1,4 @@
-﻿@page "/CatLibros"
+﻿@page "/CatEjemplares"
 @layout MainLayout
 @rendermode InteractiveServer
 @inject NavigationManager NM
@@ -13,7 +13,7 @@
 
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
-@inject ILibrosController LibrosController
+@inject IEjemplaresController EjemplaresController
 
 
 <style>
@@ -27,10 +27,10 @@
 @if (isAuthenticated)
 {
 
-    <h2 class="titulo-azul">ADMINISTRACIÓN DE LIBROS</h2>
+    <h2 class="titulo-azul">ADMINISTRACIÓN DE EJEMPLARES</h2>
 
-    <RadzenDataGrid Data="LibrosData"
-                    TItem="vLibros"
+    <RadzenDataGrid Data="EjemplaresData"
+                    TItem="vEjemplares"
                     AllowFiltering="true"
                     AllowPaging="true"
                     AllowSorting="true"
@@ -56,24 +56,28 @@
                           Disabled="!(Insert)"
                           Icon="add_circle"
                           Text="Agregar"
-                          Click="@(() => NM.NavigateTo("/libros/nuevo"))" />
+                          Click="@(() => NM.NavigateTo("/Ejemplares/nuevo"))" />
         </HeaderTemplate>
 
         <Columns>
-            <RadzenDataGridColumn Property="@nameof(vLibros.LibroId)" Title="ID" Visible=false SortOrder="SortOrder.Descending" />
+            <RadzenDataGridColumn Property="@nameof(vEjemplares.EjemplarId)" Title="ID" Visible=false SortOrder="SortOrder.Descending" />
 
-            <RadzenDataGridColumn TItem="vLibros" Property="TituloLibro" Title="Título" />
-            <RadzenDataGridColumn TItem="vLibros" Property="Autor" Title="Autor" />
-            <RadzenDataGridColumn TItem="vLibros" Property="Categoria" Title="Categoría" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="CodigoBarra" Title="Código de Barra" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="ISBN" Title="ISBN" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="TituloLibro" Title="Título" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="Autor" Title="Autor" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="EstadoLibro" Title="Estado" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="FechaAdquisicion" Title="Fecha Adquirido" />
+            <RadzenDataGridColumn TItem="vEjemplares" Property="AnioPublicacion" Title="Año Publicación" />
 
-            <RadzenDataGridColumn TItem="vLibros" Title="Acciones" Width="200px" Frozen="true" FrozenPosition="FrozenColumnPosition.Left">
-                <Template Context="libros">
+            <RadzenDataGridColumn TItem="vEjemplares" Title="Acciones" Width="200px" Frozen="true" FrozenPosition="FrozenColumnPosition.Left">
+                <Template Context="Ejemplares">
                     <RadzenButton Text=""
                                   Icon="edit"
                                   Size="ButtonSize.Small"
                                   ButtonStyle="ButtonStyle.Primary"
                                   Disabled="!(Update)"
-                                  Click="@(a => NM.NavigateTo($"/libros/{libros.LibroId}"))"
+                                  Click="@(a => NM.NavigateTo($"/Ejemplares/{Ejemplares.EjemplarId}"))"
                                   @onclick:stopPropagation="true"
                                   Style="margin-right: 5px;" />
 
@@ -82,7 +86,7 @@
                                   Size="ButtonSize.Small"
                                   ButtonStyle="ButtonStyle.Danger"
                                   Disabled="!(Delete)"
-                                  Click="@(async () => await BorrarLibro(libros))"
+                                  Click="@(async () => await BorrarEjemplar(Ejemplares))"
                                   @onclick:stopPropagation="true" />
 
                 </Template>
@@ -109,7 +113,7 @@ else
 
 @code {
 
-    private List<vLibros> LibrosData = new();
+    private List<vEjemplares> EjemplaresData = new();
     protected IEnumerable<int> PageSizeOptions { get; set; } = new[] { 2, 5, 10, 100 };
     protected string PagingSummaryFormat { get; set; } = "Página {0} de {1} (Total {2} Registros)";
 
@@ -121,15 +125,15 @@ else
     }
     private async Task LoadGrid()
     {
-        LibrosData = await LibrosController.vLibrosLista();
+        EjemplaresData = await EjemplaresController.vEjemplaresLista();
         StateHasChanged();
     }
 
-    private async Task BorrarLibro(vLibros libro)
+    private async Task BorrarEjemplar(vEjemplares Ejemplar)
     {
         var confirm = await RadzenMessages.ConfirmAsync(
             DialogService,
-            "¿Está seguro de eliminar este libro?",
+            "¿Está seguro de eliminar este Ejemplar?",
             "Confirmación"
         );
 
@@ -147,22 +151,22 @@ else
             return;
         }
 
-        var entidad = await LibrosController.Registro(libro.LibroId);
+        var entidad = await EjemplaresController.Registro(Ejemplar.EjemplarId);
         entidad.UsuarioActualiza = user.IdUsuario;
         entidad.FechaActualizacion = DateTime.Now;
 
-        bool resultado = await LibrosController.Anular(entidad);
+        bool resultado = await EjemplaresController.Anular(entidad);
 
         if (!resultado)
         {
-            await RadzenMessages.ShowAlert(DialogService, "No se pudo eliminar el libro.", eIcon.error);
+            await RadzenMessages.ShowAlert(DialogService, "No se pudo eliminar el Ejemplar.", eIcon.error);
             return;
         }
 
-        await RadzenMessages.ShowAlert(DialogService, "Libro eliminado correctamente.", eIcon.success);
+        await RadzenMessages.ShowAlert(DialogService, "Ejemplar eliminado correctamente.", eIcon.success);
         await LoadGrid();
     }
-   
+
 }
 
 <!-- #Seguridad -->
@@ -170,7 +174,7 @@ else
     public bool Insert { get; set; }
     public bool Update { get; set; }
     public bool Delete { get; set; }
-    private byte IdFormulario = (byte)eFormularios.CatLibros;//Cambiar formulario según Corresponda
+    private byte IdFormulario = (byte)eFormularios.CatEjemplares;//Cambiar formulario según Corresponda
     private bool isAuthenticated = false;
     private bool isRefreshing = false;
     private bool IsAuthorizedForm = true;
