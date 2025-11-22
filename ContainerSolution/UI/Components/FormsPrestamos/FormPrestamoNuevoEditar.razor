@@ -1,0 +1,356 @@
+﻿@page "/Prestamos/nuevo"
+@page "/Prestamos/{PrestamoId:int}"
+
+@layout MainLayout
+@rendermode InteractiveServer
+
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IPrestamosController PrestamosController
+@inject ISociosController SociosController
+@inject IEjemplaresController EjemplaresController
+
+<style>
+    .titulo-azul {
+        color: darkblue !important;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+</style>
+
+@if (isAuthenticated)
+{
+    <h3 class="titulo-azul">@((EsNuevo ? "NUEVO PRESTAMO" : "EDITAR PRESTAMO"))</h3>
+
+    <RadzenCard>
+        <RadzenTemplateForm Data="@Prestamo" TItem="Prestamos" Submit="@Guardar">
+
+            <RadzenRow class="mt-2">
+                <!-- EJEMPLAR -->
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="Seleccionar Ejemplar" />
+                    <RadzenDropDown Data="@opcionesEjemplares"
+                                    TextProperty="TituloLibro"
+                                    ValueProperty="EjemplarId"
+                                    @bind-Value="Prestamo.EjemplarId"
+                                    Name="EjemplarId"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Style="width:100%" />
+                </RadzenColumn>
+
+                <!-- SOCIO -->
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="Seleccionar Socio" />
+                    <RadzenDropDown Data="@opcionesSocios"
+                                    TextProperty="Socio"
+                                    ValueProperty="SocioId"
+                                    @bind-Value="Prestamo.SocioId"
+                                    Name="SocioId"
+                                    AllowFiltering="true"
+                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Style="width:100%" />
+                </RadzenColumn>                
+            </RadzenRow>
+
+            <RadzenRow class="mt-3">                
+                <!-- FECHA VENCIMIENTO -->
+                <RadzenColumn Size="6">
+                    <RadzenLabel Text="Fecha de Vencimiento" />
+                    <RadzenDatePicker @bind-Value="Prestamo.FechaVencimiento"
+                                      Name="FechaVencimiento"
+                                      DateFormat="dd/MM/yyyy"
+                                      AllowInput="false"
+                                      ShowButton="false"
+                                      Min="@(DateTime.Today.AddDays(1))"
+                                      Style="width:100%" />
+                </RadzenColumn>
+
+                <!-- FECHA DEVOLUCION SOLO EN MODO EDITAR -->
+                @if (!EsNuevo)
+                {                    
+                    <RadzenColumn Size="6">
+                        <RadzenLabel Text="Fecha de Devolución" />
+                        <RadzenDatePicker @bind-Value="Prestamo.FechaDevolucion"
+                                            Name="FechaDevolucion"
+                                            DateFormat="dd/MM/yyyy"
+                                            AllowInput="false"
+                                            ShowButton="false"
+                                            Min="@(DateTime.Today)"
+                                            Style="width:100%" />
+                    </RadzenColumn>
+                }
+            </RadzenRow>            
+
+            <!-- BOTONES -->
+            <div class="d-flex justify-content-center mt-4">
+                <RadzenButton Text="Guardar"
+                              Icon="save"
+                              ButtonStyle="ButtonStyle.Success"
+                              Type="Submit"
+                              Class="mx-2" />
+
+                <RadzenButton Text="Cancelar"
+                              Icon="close"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Click="@Cancelar"
+                              Class="mx-2" />
+            </div>
+
+        </RadzenTemplateForm>
+    </RadzenCard>
+}
+
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+
+<RadzenDialog />
+
+@code {
+    [Parameter] public int? PrestamoId { get; set; }
+    private bool EsNuevo => !PrestamoId.HasValue || PrestamoId == 0;
+
+    private Prestamos Prestamo = new();
+    private List<Socios>? opcionesSocios { get; set; }
+    private List<vEjemplares>? opcionesEjemplares { get; set; }
+
+    private IEnumerable<Socios>? Socios;
+    private IEnumerable<vEjemplares>? Ejemplares;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombos();
+
+        if (!EsNuevo)
+        {
+            var encontrado = await PrestamosController.Registro(PrestamoId.Value);
+
+            if (encontrado == null)
+            {
+                await RadzenMessages.ShowAlert(DialogService, "Prestamo no encontrado.", eIcon.warning);
+                NM.NavigateTo("/PrestamosFormulario");
+            }
+
+            Prestamo = encontrado;
+        }
+    }
+
+    private async Task CargarCombos()
+    {
+        // SOCIOS
+        Socios = await SociosController.Lista();
+        opcionesSocios = Socios?
+            .Where(e => e.Activo == true)
+            .Select(e =>
+            {
+                e.Socio = $"{e.Socio?.Trim()} - {e.Email?.Trim()} - {e.Telefono?.Trim()}";
+                return e;
+            }).ToList();
+
+
+        // PRESTAMOS ACTIVOS (los que NO tienen fecha de devolución)
+        var prestamosActivos = await PrestamosController.Lista();
+
+        var ejemplaresPrestados = prestamosActivos
+            .Where(p => p.Activo == true &&
+                        p.FechaDevolucion == null &&           // prestamo aún activo
+                        (EsNuevo || p.PrestamoId != PrestamoId)) // si estás editando, permite su ejemplar actual
+            .Select(p => p.EjemplarId)
+            .ToHashSet();
+
+
+        // EJEMPLARES DISPONIBLES
+        Ejemplares = await EjemplaresController.vEjemplaresLista();
+
+        opcionesEjemplares = Ejemplares?
+            .Where(e => e.Activo == true &&
+                        !ejemplaresPrestados.Contains(e.EjemplarId)) // quitar los prestados
+            .Select(e =>
+            {
+                e.TituloLibro =
+                    $"Cod.Barra {e.CodigoBarra?.Trim()} - ISBN {e.ISBN?.Trim()} - {e.TituloLibro?.Trim()} - {e.Autor?.Trim()}";
+                return e;
+            })
+            .ToList();
+    }
+
+    private async Task Guardar()
+    {
+        var user = await AutenticationServices.GetAuthenticated();
+
+        if (user == null)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Sesión no válida.", eIcon.error);
+            return;
+        }
+
+        // Ejecutar validación antes de guardar
+        if (!await ValidarPrestamo())
+        {
+            return; // El método ya mostró el mensaje correspondiente
+        }
+
+        bool resultado = false;
+
+        if (!EsNuevo)
+        {
+            Prestamo.UsuarioActualiza = user.IdUsuario;
+            Prestamo.FechaActualizacion = DateTime.Now;
+
+            resultado = await PrestamosController.Update(Prestamo);
+        }
+        else
+        {
+            Prestamo.FechaSalida = DateTime.Now;
+            Prestamo.Activo = true;
+            Prestamo.UsuarioRegistra = user.IdUsuario;
+            Prestamo.FechaRegistro = DateTime.Now;
+
+            await PrestamosController.Insert(Prestamo);
+            resultado = true;
+        }
+
+        if (resultado)
+        {
+            await RadzenMessages.ShowAlert(
+                DialogService,
+                EsNuevo ? "Préstamo creado correctamente." : "Préstamo actualizado correctamente.",
+                eIcon.success);
+
+            NM.NavigateTo("/PrestamosFormulario");
+        }
+    }
+
+
+    private async Task<bool> ValidarPrestamo()
+    {
+        // Validar ejemplar
+        if (Prestamo.EjemplarId <= 0)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Debe seleccionar un ejemplar.", eIcon.warning);
+            return false;
+        }
+
+        // Validar socio
+        if (Prestamo.SocioId <= 0)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "Debe seleccionar un socio.", eIcon.warning);
+            return false;
+        }
+
+        // Validar fecha vencimiento
+        if (Prestamo.FechaVencimiento < Prestamo.FechaSalida)
+        {
+            await RadzenMessages.ShowAlert(DialogService, "La fecha de vencimiento no puede ser menor que la salida.", eIcon.warning);
+            return false;
+        }
+
+        return true;
+    }
+
+
+
+    private async Task Cancelar()
+    {
+        var confirm = await RadzenMessages.ConfirmAsync(DialogService,
+            "¿Cancelar cambios? Los datos no guardados se perderán.",
+            "Confirmación");
+
+        if (confirm == true)
+            NM.NavigateTo("/PrestamosFormulario");
+    }
+}
+
+
+<!-- #Seguridad -->
+@code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.PrestamosFormulario;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+}
+<!-- #endregion -->

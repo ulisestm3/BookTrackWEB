@@ -15,14 +15,20 @@
             <RadzenPanelMenuItem Text="Usuario Formularios" Icon="group" Path="UsuarioFormulario" Visible=@VerUsuarioFormulario />
             <RadzenPanelMenuItem Text="Usuario Permisos" Icon="group" Path="UsuarioPermisos" Visible=@VerUsuarioPermisos />
         </RadzenPanelMenuItem>
+
         <RadzenPanelMenuItem Text="Catálogos" Icon="Settings">
             <RadzenPanelMenuItem Text="Autores" Icon="group" Path="CatAutores" Visible=@VerAutores />
             <RadzenPanelMenuItem Text="Socios" Icon="group" Path="CatSocios" Visible=@VerSocios />
-            <RadzenPanelMenuItem Text="Categorías" Icon="group" Path="CatCategorias" Visible=@VerCategorias />
-            <RadzenPanelMenuItem Text="Estado Libros" Icon="group" Path="CatEstadoLibros" Visible=@VerEstadoLibros />
-            <RadzenPanelMenuItem Text="Libros" Icon="group" Path="CatLibros" Visible=@VerLibros />
-            <RadzenPanelMenuItem Text="Publicaciones Libros" Icon="group" Path="CatPublicacionLibros" Visible=@VerPublicacionLibros />
-            <RadzenPanelMenuItem Text="Ejemplares" Icon="group" Path="CatEjemplares" Visible=@VerEjemplares />
+            <RadzenPanelMenuItem Text="Categorías" Icon="category" Path="CatCategorias" Visible=@VerCategorias />
+            <RadzenPanelMenuItem Text="Estado Libros" Icon="book_3" Path="CatEstadoLibros" Visible=@VerEstadoLibros />
+            <RadzenPanelMenuItem Text="Libros" Icon="book_2" Path="CatLibros" Visible=@VerLibros />
+            <RadzenPanelMenuItem Text="Publicaciones Libros" Icon="dictionary" Path="CatPublicacionLibros" Visible=@VerPublicacionLibros />
+            <RadzenPanelMenuItem Text="Ejemplares" Icon="book" Path="CatEjemplares" Visible=@VerEjemplares />
+        </RadzenPanelMenuItem>
+
+        <RadzenPanelMenuItem Text="Prestamos" Icon="library_books">
+            <RadzenPanelMenuItem Text="Prestamos Activos" Icon="bookmark_add" Path="PrestamosFormulario" Visible=@VerPrestamosFormulario />
+            <RadzenPanelMenuItem Text="Historial" Icon="bookmark_check" Path="PrestamosHistorial" Visible=@VerPrestamosHistorial />
         </RadzenPanelMenuItem>
     }
 </RadzenPanelMenu>
@@ -56,6 +62,8 @@
     public bool VerLibros { get; set; } = false;
     public bool VerEjemplares { get; set; } = false;
     public bool VerPublicacionLibros { get; set; } = false;
+    public bool VerPrestamosFormulario { get; set; } = false;
+    public bool VerPrestamosHistorial { get; set; } = false;
 
     private bool isAuthenticated = false;
     private bool isAuthStateVerified = false;
@@ -137,6 +145,8 @@
         VerLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatLibros);
         VerEjemplares = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatEjemplares);
         VerPublicacionLibros = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.CatPublicacionLibros);
+        VerPrestamosFormulario = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.PrestamosFormulario);
+        VerPrestamosHistorial = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.PrestamosHistorial);
 
         VerSeguridad = VerUsuario || VerUsuarioFormulario || VerUsuarioPermisos;
 
