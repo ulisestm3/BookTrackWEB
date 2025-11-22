@@ -6,32 +6,36 @@
 @inject UI.Authentication.IAutenticationsServices AuthenticationService
 @inject DAL.IAuthenticationController AuthenticationController
 
-<RadzenPanelMenu ShowArrow="true" DisplayStyle="@(IconMenu ? MenuItemDisplayStyle.Icon : MenuItemDisplayStyle.IconAndText)" Style=@CustomStyle>
+<RadzenPanelMenu ShowArrow="true" DisplayStyle="@(IconMenu? MenuItemDisplayStyle.Icon: MenuItemDisplayStyle.IconAndText)" Style=@CustomStyle>
     <RadzenPanelMenuItem Text="Inicio" Path="home" Icon="home" />
-    @if (VerSeguridad)
-    {
-        <RadzenPanelMenuItem Text="Seguridad" Icon="security">
-            <RadzenPanelMenuItem Text="Usuarios" Icon="Person" Path="Users" Visible=@VerUsuario />
-            <RadzenPanelMenuItem Text="Usuario Formularios" Icon="group" Path="UsuarioFormulario" Visible=@VerUsuarioFormulario />
-            <RadzenPanelMenuItem Text="Usuario Permisos" Icon="group" Path="UsuarioPermisos" Visible=@VerUsuarioPermisos />
-        </RadzenPanelMenuItem>
 
-        <RadzenPanelMenuItem Text="Catálogos" Icon="Settings">
-            <RadzenPanelMenuItem Text="Autores" Icon="group" Path="CatAutores" Visible=@VerAutores />
-            <RadzenPanelMenuItem Text="Socios" Icon="group" Path="CatSocios" Visible=@VerSocios />
-            <RadzenPanelMenuItem Text="Categorías" Icon="category" Path="CatCategorias" Visible=@VerCategorias />
-            <RadzenPanelMenuItem Text="Estado Libros" Icon="book_3" Path="CatEstadoLibros" Visible=@VerEstadoLibros />
-            <RadzenPanelMenuItem Text="Libros" Icon="book_2" Path="CatLibros" Visible=@VerLibros />
-            <RadzenPanelMenuItem Text="Publicaciones Libros" Icon="dictionary" Path="CatPublicacionLibros" Visible=@VerPublicacionLibros />
-            <RadzenPanelMenuItem Text="Ejemplares" Icon="book" Path="CatEjemplares" Visible=@VerEjemplares />
-        </RadzenPanelMenuItem>
+    <!-- Módulo de Seguridad -->
+    <RadzenPanelMenuItem Text="Seguridad" Icon="security" Visible="@VerSeguridad">
+        <RadzenPanelMenuItem Text="Usuarios" Icon="Person" Path="Users" Visible="@VerUsuario" />
+        <RadzenPanelMenuItem Text="Usuario Formularios" Icon="group" Path="UsuarioFormulario" Visible="@VerUsuarioFormulario" />
+        <RadzenPanelMenuItem Text="Usuario Permisos" Icon="group" Path="UsuarioPermisos" Visible="@VerUsuarioPermisos" />
+    </RadzenPanelMenuItem>
 
-        <RadzenPanelMenuItem Text="Prestamos" Icon="library_books">
-            <RadzenPanelMenuItem Text="Prestamos Activos" Icon="bookmark_add" Path="PrestamosFormulario" Visible=@VerPrestamosFormulario />
-            <RadzenPanelMenuItem Text="Historial" Icon="bookmark_check" Path="PrestamosHistorial" Visible=@VerPrestamosHistorial />
-        </RadzenPanelMenuItem>
-    }
+    <!-- Módulo de Catálogos -->
+    <RadzenPanelMenuItem Text="Catálogos" Icon="Settings"
+                         Visible="@(VerAutores || VerSocios || VerCategorias || VerEstadoLibros || VerLibros || VerEjemplares || VerPublicacionLibros)">
+        <RadzenPanelMenuItem Text="Autores" Icon="group" Path="CatAutores" Visible="@VerAutores" />
+        <RadzenPanelMenuItem Text="Socios" Icon="group" Path="CatSocios" Visible="@VerSocios" />
+        <RadzenPanelMenuItem Text="Categorías" Icon="category" Path="CatCategorias" Visible="@VerCategorias" />
+        <RadzenPanelMenuItem Text="Estado Libros" Icon="book_3" Path="CatEstadoLibros" Visible="@VerEstadoLibros" />
+        <RadzenPanelMenuItem Text="Libros" Icon="book_2" Path="CatLibros" Visible="@VerLibros" />
+        <RadzenPanelMenuItem Text="Publicaciones Libros" Icon="dictionary" Path="CatPublicacionLibros" Visible="@VerPublicacionLibros" />
+        <RadzenPanelMenuItem Text="Ejemplares" Icon="book" Path="CatEjemplares" Visible="@VerEjemplares" />
+    </RadzenPanelMenuItem>
+
+    <!-- Módulo de Préstamos -->
+    <RadzenPanelMenuItem Text="Préstamos" Icon="library_books"
+                         Visible="@(VerPrestamosFormulario || VerPrestamosHistorial)">
+        <RadzenPanelMenuItem Text="Préstamos Activos" Icon="bookmark_add" Path="PrestamosFormulario" Visible="@VerPrestamosFormulario" />
+        <RadzenPanelMenuItem Text="Historial" Icon="bookmark_check" Path="PrestamosHistorial" Visible="@VerPrestamosHistorial" />
+    </RadzenPanelMenuItem>
 </RadzenPanelMenu>
+
 
 @if (isAuthenticated)
 {
