@@ -1,0 +1,178 @@
+﻿@page "/PrestamosHistorial"
+@layout MainLayout
+@rendermode InteractiveServer
+@inject NavigationManager NM
+@inject DialogService DialogService
+
+@inject IRadzenMessages RadzenMessages
+@inject ISHA256 SHA
+@inject IGeneral GRAL
+@inject IPasswordUtility PasswordUtility
+@inject IAutenticationsServices AutenticationServices
+@inject IAuthenticationController AuthenticationController
+
+@inject IvUsuariosController vUsuariosController
+@inject IUsuariosController UsuariosController
+@inject IPrestamosController PrestamosController
+
+
+<style>
+    .titulo-azul {
+        color: darkblue !important;
+        text-align: center;
+    }
+</style>
+
+
+@if (isAuthenticated)
+{
+
+    <h2 class="titulo-azul">HISTORIAL DE PRESTAMOS</h2>
+
+    <RadzenDataGrid Data="PrestamosData"
+                    TItem="vPrestamos"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    AllowColumnResize="true"
+                    ColumnWidth="150px"
+                    Density="Density.Default"
+                    PageSize="10"
+                    Responsive="true"
+                    EditMode="DataGridEditMode.Single"
+                    EmptyText="Sin registros para mostrar"
+                    ShowPagingSummary="true"
+                    PageSizeOptions=@PageSizeOptions
+                    PagingSummaryFormat=@PagingSummaryFormat
+                    PageSizeText="Registros por página"
+                    ClearFilterText="Borrar"
+                    ApplyFilterText="Aplicar"
+                    FilterText="Filtro"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    FilterMode="FilterMode.Simple">
+
+        <Columns>
+            <RadzenDataGridColumn Property="@nameof(vPrestamos.PrestamoId)" Title="ID" Visible=false SortOrder="SortOrder.Descending" />
+
+            <RadzenDataGridColumn TItem="vPrestamos" Property="CodigoBarra" Title="Codigo barra" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="ISBN" Title="ISBN" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="TituloLibro" Title="Título" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="Socio" Title="Socio" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="Telefono" Title="Telefono" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="FechaSalida" Title="Fecha Salida" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="FechaVencimiento" Title="Vencimiento" />
+            <RadzenDataGridColumn TItem="vPrestamos" Property="FechaDevolucion" Title="Devolución" />
+         
+        </Columns>
+    </RadzenDataGrid>
+}
+else
+{
+    if (!IsAuthorizedForm)
+    {
+        <NoAuthorized />
+    }
+    else
+    {
+        <div style="text-align: center; margin-top: 50px;">
+            <h1>Validando Sesión...</h1>
+            <div class="loading-spinner"></div>
+        </div>
+    }
+}
+<RadzenDialog />
+
+
+@code {
+
+    private List<vPrestamos> PrestamosData = new();
+    protected IEnumerable<int> PageSizeOptions { get; set; } = new[] { 2, 5, 10, 100 };
+    protected string PagingSummaryFormat { get; set; } = "Página {0} de {1} (Total {2} Registros)";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGrid();
+    }
+    private async Task LoadGrid()
+    {
+        PrestamosData = await PrestamosController.vHistorialPrestamosLista();
+        StateHasChanged();
+    }
+
+}
+
+<!-- #Seguridad -->
+@code {
+    public bool Insert { get; set; }
+    public bool Update { get; set; }
+    public bool Delete { get; set; }
+    private byte IdFormulario = (byte)eFormularios.PrestamosHistorial;//Cambiar formulario según Corresponda
+    private bool isAuthenticated = false;
+    private bool isRefreshing = false;
+    private bool IsAuthorizedForm = true;
+    private List<vPermisosUsuario> VPermisosUsuario = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !isAuthenticated)
+        {
+            await RefreshAuthenticationState();
+        }
+    }
+    private async Task RefreshAuthenticationState()
+    {
+        if (!isRefreshing)
+        {
+            isRefreshing = true;
+            try
+            {
+                isAuthenticated = await AutenticationServices.IsAuthenticated();
+
+                if (isAuthenticated)
+                {
+                    await AutenticationServices.ExtendSession();
+                    var result = await AutenticationServices.GetAuthenticated();
+                    IsAuthorizedForm = await AuthenticationController.AutorizedForm(IdFormulario, result.IdUsuario);
+                    isAuthenticated = IsAuthorizedForm;
+                    VPermisosUsuario = await AuthenticationController.GetPermisosUsuario(result.IdUsuario, IdFormulario);
+                    UploadPermission();
+                    StateHasChanged();
+                }
+                else
+                {
+                    await ShowLogin();
+                }
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
+        }
+    }
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    private async Task ShowLogin()
+    {
+        var parameter = new Dictionary<string, object>();
+        //parameter.Add("Id", Id);
+        //parameter["type"] = type;
+
+        var dialogOption = new DialogOptions();
+        dialogOption.ShowClose = false;
+        dialogOption.CloseDialogOnEsc = false;
+        dialogOption.CloseDialogOnOverlayClick = false;
+        dialogOption.Resizable = false;
+        dialogOption.ShowTitle = true;
+
+        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
+        StateHasChanged();
+    }
+
+    private void UploadPermission()
+    {
+        Insert = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Agregar).Count() > 0;
+        Update = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Actualizar).Count() > 0;
+        Delete = VPermisosUsuario.Where(a => a.IdPermiso == (byte)ePermiso.Anular).Count() > 0;
+    }
+}
+<!-- #endregion -->

@@ -11,186 +11,97 @@
 @inject IAuthenticationController AuthenticationController
 @inject IParametrosController ParametrosController
 
-<div class="container py-4">
-    <div class="row g-4">
-        <!-- Bienvenida y Resumen -->
-        <div class="col-lg-12">
-            <div class="section-title">
-                <i class="bi bi-speedometer2 me-2"></i>Panel de Control - BookTrack
-            </div>
-            <div class="card card-custom mb-3">
-                <div class="card-body">
-                    <h5>Bienvenido al Sistema Interno</h5>
-                    <p>Desde aquí puedes gestionar préstamos, usuarios, inventario y reportes. Utiliza los accesos directos para navegar rápidamente entre las secciones.</p>
+@inject IPrestamosController PrestamosController
+
+
+    <div class="container py-4">
+        <div class="row g-4">
+            <!-- Bienvenida y Resumen -->
+            <div class="col-lg-12">
+                <div class="section-title">
+                    <i class="bi bi-speedometer2 me-2"></i>Panel de Control - BookTrack
                 </div>
-            </div>
-            <div class="card card-custom">
-                <div class="card-body">
-                    <h5>Estadísticas Rápidas</h5>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <p><strong>Préstamos activos:</strong> 42</p>
-                        </div>
-                        <div class="col-md-4">
-                            <p><strong>Libros disponibles:</strong> 187</p>
-                        </div>
-                        <div class="col-md-4">
-                            <p><strong>Usuarios registrados:</strong> 125</p>
+                <div class="card card-custom mb-3">
+                    <div class="card-body">
+                        <h5>Bienvenido al Sistema Interno</h5>
+                        <p>Desde aquí puedes gestionar préstamos, usuarios, inventario y reportes. Utiliza los accesos directos para navegar rápidamente entre las secciones.</p>
+                    </div>
+                </div>
+
+                <!-- Estadisticas -->
+                <div class="card card-custom">
+                    <div class="card-body">
+                        <h5>Estadísticas Rápidas</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Préstamos activos:</strong> 42</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Ejemplares disponibles:</strong> 187</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Accesos Directos -->
-        <div class="col-lg-6">
-            <div class="section-title">
-                <i class="bi bi-link-45deg me-2"></i>Accesos Directos
-            </div>
-            <div class="card card-custom mb-3">
-                <div class="card-body">
-                    <h6 class="mb-1"><i class="bi bi-book me-2"></i>Gestión de Libros</h6>
-                    <p>Agregar, editar o dar de baja libros del catálogo.</p>
-                    <a href="#" class="btn btn-outline-primary btn-sm">Ir a libros</a>
+            <!-- Accesos Directos -->
+            <div class="col-lg-6">
+                <div class="section-title">
+                    <i class="bi bi-link-45deg me-2"></i>Accesos Directos
+                </div>
+                <div class="card card-custom mb-3">
+                    <div class="card-body">
+                        <h6 class="mb-1"><i class="bi bi-book me-2"></i>Gestión de Prestamos</h6>
+                        <p>Agregar, editar o dar de baja prestamos.</p>
+                        <a href="/PrestamosFormulario" class="btn btn-outline-primary btn-sm">Ir a Prestamos</a>
+                    </div>
+                </div>
+                <div class="card card-custom mb-3">
+                    <div class="card-body">
+                        <h6 class="mb-1"><i class="bi bi-book me-2"></i>Gestión de Ejemplares</h6>
+                        <p>Agregar, editar o dar de baja ejemplares del catálogo.</p>
+                        <a href="/CatEjemplares" class="btn btn-outline-primary btn-sm">Ir a Ejemplares</a>
+                    </div>
+                </div>
+                <div class="card card-custom">
+                    <div class="card-body">
+                        <h6 class="mb-1"><i class="bi bi-graph-up me-2"></i>Historial de Prestamos</h6>
+                        <p>Ver reportes de préstamos, devoluciones y actividad.</p>
+                        <a href="/PrestamosHistorial" class="btn btn-outline-primary btn-sm">Ver Historial</a>
+                    </div>
                 </div>
             </div>
-            <div class="card card-custom mb-3">
-                <div class="card-body">
-                    <h6 class="mb-1"><i class="bi bi-people me-2"></i>Gestión de Usuarios</h6>
-                    <p>Administrar usuarios, permisos y registros.</p>
-                    <a href="#" class="btn btn-outline-primary btn-sm">Ir a usuarios</a>
-                </div>
-            </div>
-            <div class="card card-custom">
-                <div class="card-body">
-                    <h6 class="mb-1"><i class="bi bi-graph-up me-2"></i>Reportes</h6>
-                    <p>Generar reportes de préstamos, devoluciones y actividad.</p>
-                    <a href="#" class="btn btn-outline-primary btn-sm">Ver reportes</a>
-                </div>
-            </div>
-        </div>
 
-        <!-- Notificaciones y Alertas -->
-        <div class="col-lg-6">
-            <div class="section-title">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>Notificaciones
-            </div>
-            <div class="card card-custom mb-3">
-                <div class="card-body">
-                    <p><strong>3 préstamos vencidos:</strong> Notificar a los usuarios correspondientes.</p>
-                    <a href="#" class="btn btn-primary btn-sm">Ver detalles</a>
+            <!-- Notificaciones y Alertas -->
+            <div class="col-lg-6">
+                <div class="section-title">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Notificaciones
                 </div>
-            </div>
-            <div class="card card-custom mb-3">
-                <div class="card-body">
-                    <p><strong>5 solicitudes de préstamo pendientes:</strong> Revisar y aprobar.</p>
-                    <a href="#" class="btn btn-primary btn-sm">Gestionar solicitudes</a>
+                <div class="card card-custom mb-3">
+                    <div class="card-body">
+                        <p><strong>3 préstamos vencidos:</strong> Notificar a los usuarios correspondientes.</p>
+                        <a href="#" class="btn btn-primary btn-sm">Ver detalles</a>
+                    </div>
                 </div>
-            </div>
-            <div class="card card-custom">
-                <div class="card-body">
-                    <p><strong>Inventario bajo:</strong> 3 libros requieren reposición.</p>
-                    <a href="#" class="btn btn-primary btn-sm">Ver inventario</a>
+                <div class="card card-custom mb-3">
+                    <div class="card-body">
+                        <p><strong>5 solicitudes de préstamo pendientes:</strong> Revisar y aprobar.</p>
+                        <a href="#" class="btn btn-primary btn-sm">Gestionar solicitudes</a>
+                    </div>
+                </div>
+                <div class="card card-custom">
+                    <div class="card-body">
+                        <p><strong>Inventario bajo:</strong> 3 libros requieren reposición.</p>
+                        <a href="#" class="btn btn-primary btn-sm">Ver inventario</a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
 
 <RadzenDialog />
 
-
-
-@* Seguridad *@
 @code {
-    private bool isAuthenticated = false;
-    private bool isAuthStateVerified = false;
-    private bool isRefreshing = false;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender || !isAuthStateVerified)
-        {
-            await RefreshAuthenticationState();
-        }
-    }
-
-    private async Task RefreshAuthenticationState()
-    {
-        if (!isRefreshing)
-        {
-            isRefreshing = true;
-            try
-            {
-                isAuthenticated = await AutenticationServices.IsAuthenticated();
-
-                if (isAuthenticated)
-                {
-                    await AutenticationServices.ExtendSession();
-                    isAuthStateVerified = true;
-                    StateHasChanged();
-                }
-                else
-                {
-                    await ShowLogin();
-                }
-            }
-            finally
-            {
-                isRefreshing = false;
-            }
-        }
-    }
-
-    public string Login { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    private async Task ShowLogin()
-    {
-        var parameter = new Dictionary<string, object>();
-        //parameter.Add("Id", Id);
-        //parameter["type"] = type;
-
-        var dialogOption = new DialogOptions();
-        dialogOption.ShowClose = false;
-        dialogOption.CloseDialogOnEsc = false;
-        dialogOption.CloseDialogOnOverlayClick = false;
-        dialogOption.Resizable = false;
-        dialogOption.ShowTitle = true;
-
-        await DialogService.OpenAsync<SessionExpired.LoginRequired>("INICIAR SESIÓN", parameter, dialogOption);
-
-
-
-    //     var result = await DialogService.OpenAsync("Iniciar Sesion", ds =>
-    // @<RadzenStack Gap="1rem">
-    //     <RadzenTextBox @bind-Value="Login" Placeholder="Usuario" Style="width: 100%;" />
-    //     <RadzenPassword @bind-Value="Password" Placeholder="Contraseña" Style="width: 100%;" />
-    //     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
-    //         <RadzenButton Text="Cancelar" Click="() => ds.Close(false)" ButtonStyle="ButtonStyle.Light" />
-    //         <RadzenButton Text="Iniciar Sesión" Click="@(() => ValidateLogin(ds))" ButtonStyle="ButtonStyle.Primary" />
-    //     </RadzenStack>
-    // </RadzenStack>
-    // ,
-    // new DialogOptions { Width = "350px", Height = "250px", CloseDialogOnOverlayClick = false,ShowClose=false });
-    }
-
-    // private async Task<bool> ValidateLogin(DialogService ds)
-    // {
-    //     if (await AuthenticationController.Existe(Login, SHA.Sha256(Password)))
-    //     {
-    //         if (await AutenticationServices.Authenticate(await AuthenticationController.Registro(Login)))
-    //         {
-    //             ds.Close(true);
-    //             return true;
-    //         }
-    //         return false;
-    //     }
-    //     else
-    //     {
-    //         NM.NavigateTo("/");
-    //         return false;
-    //     }
-    // }
-
+    
 }

@@ -25,6 +25,7 @@ namespace DAL
         public DbSet<Libros> Libros { get; set; }
         public DbSet<Ejemplares> Ejemplares { get; set; }
         public DbSet<PublicacionLibros> PublicacionLibros { get; set; }
+        public DbSet<Prestamos> Prestamos { get; set; }
         #endregion DBSETS_TABLAS
 
 
@@ -37,6 +38,7 @@ namespace DAL
 		public DbSet<vLibros> vLibros { get; set; }
         public DbSet<vEjemplares> vEjemplares { get; set; }
         public DbSet<vPublicacionLibros> vPublicacionLibros { get; set; }
+        public DbSet<vPrestamos> vPrestamos { get; set; }
         #endregion DBSETS_VISTAS
 
 

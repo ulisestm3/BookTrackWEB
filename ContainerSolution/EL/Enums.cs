@@ -40,7 +40,9 @@ namespace EL
             CatCategorias,
             CatLibros,
             CatEjemplares,
-            CatPublicacionLibros
+            CatPublicacionLibros,
+            PrestamosFormulario,
+            PrestamosHistorial
         }
         public enum ePermiso
         {
