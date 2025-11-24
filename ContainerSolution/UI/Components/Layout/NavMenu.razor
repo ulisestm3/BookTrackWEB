@@ -17,8 +17,7 @@
     </RadzenPanelMenuItem>
 
     <!-- Módulo de Catálogos -->
-    <RadzenPanelMenuItem Text="Catálogos" Icon="Settings"
-                         Visible="@(VerAutores || VerSocios || VerCategorias || VerEstadoLibros || VerLibros || VerEjemplares || VerPublicacionLibros)">
+    <RadzenPanelMenuItem Text="Catálogos" Icon="Settings" Visible="@(VerCatalogos)">
         <RadzenPanelMenuItem Text="Autores" Icon="group" Path="CatAutores" Visible="@VerAutores" />
         <RadzenPanelMenuItem Text="Socios" Icon="group" Path="CatSocios" Visible="@VerSocios" />
         <RadzenPanelMenuItem Text="Categorías" Icon="category" Path="CatCategorias" Visible="@VerCategorias" />
@@ -29,8 +28,7 @@
     </RadzenPanelMenuItem>
 
     <!-- Módulo de Préstamos -->
-    <RadzenPanelMenuItem Text="Préstamos" Icon="library_books"
-                         Visible="@(VerPrestamosFormulario || VerPrestamosHistorial)">
+    <RadzenPanelMenuItem Text="Préstamos" Icon="library_books" Visible="@(VerPrestamos)">
         <RadzenPanelMenuItem Text="Préstamos Activos" Icon="bookmark_add" Path="PrestamosFormulario" Visible="@VerPrestamosFormulario" />
         <RadzenPanelMenuItem Text="Historial" Icon="bookmark_check" Path="PrestamosHistorial" Visible="@VerPrestamosHistorial" />
     </RadzenPanelMenuItem>
@@ -68,6 +66,8 @@
     public bool VerPublicacionLibros { get; set; } = false;
     public bool VerPrestamosFormulario { get; set; } = false;
     public bool VerPrestamosHistorial { get; set; } = false;
+    public bool VerCatalogos { get; set; } = false;
+    public bool VerPrestamos { get; set; } = false;
 
     private bool isAuthenticated = false;
     private bool isAuthStateVerified = false;
@@ -153,6 +153,8 @@
         VerPrestamosHistorial = AccesoFormularios.Any(a => a.IdFormulario == (byte)eFormularios.PrestamosHistorial);
 
         VerSeguridad = VerUsuario || VerUsuarioFormulario || VerUsuarioPermisos;
+        VerCatalogos = VerAutores || VerSocios || VerCategorias || VerEstadoLibros || VerLibros || VerEjemplares || VerPublicacionLibros;
+        VerPrestamos = VerPrestamosFormulario || VerPrestamosHistorial;
 
 
         return
