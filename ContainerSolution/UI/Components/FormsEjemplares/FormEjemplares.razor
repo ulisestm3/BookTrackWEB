@@ -14,6 +14,7 @@
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
 @inject IEjemplaresController EjemplaresController
+@inject IPrestamosController PrestamosController
 
 
 <style>
@@ -131,6 +132,16 @@ else
 
     private async Task BorrarEjemplar(vEjemplares Ejemplar)
     {
+        var PrestamoAsociados = await PrestamosController.ExistePrestamoPendienteEjemplar(Ejemplar.EjemplarId);
+        if (PrestamoAsociados)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                "Este ejemplar no puede eliminarse porque tiene prestamos asociados.",
+                eIcon.error);
+
+            return;
+        }
+
         var confirm = await RadzenMessages.ConfirmAsync(
             DialogService,
             "¿Está seguro de eliminar este Ejemplar?",

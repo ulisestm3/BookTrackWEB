@@ -20,6 +20,8 @@ namespace DAL
         Task<List<vPrestamos>> vPrestamosActivosLista();
         Task<List<vPrestamos>> vHistorialPrestamosLista();
         Task<vPrestamos?> vPrestamosPorId(int PrestamoId);
+        Task<bool> ExistePrestamoPendiente(int SocioId);
+        Task<bool> ExistePrestamoPendienteEjemplar(int EjemplarId);
     }
     public class PrestamosController : IPrestamosController
     {
@@ -108,5 +110,19 @@ namespace DAL
             return await dbContext.vPrestamos.FirstOrDefaultAsync(l => l.PrestamoId == PrestamoId);
         }
         #endregion
+
+        public async Task<bool> ExistePrestamoPendiente(int SocioId)
+        {
+            using var dbContext = db.CreateDbContext();
+            return await dbContext.vPrestamos
+                .AnyAsync(l => l.SocioId == SocioId && l.Activo && l.FechaDevolucion == null);
+        }
+
+        public async Task<bool> ExistePrestamoPendienteEjemplar(int EjemplarId)
+        {
+            using var dbContext = db.CreateDbContext();
+            return await dbContext.vPrestamos
+                .AnyAsync(l => l.EjemplarId == EjemplarId && l.Activo && l.FechaDevolucion == null);
+        }
     }
 }
