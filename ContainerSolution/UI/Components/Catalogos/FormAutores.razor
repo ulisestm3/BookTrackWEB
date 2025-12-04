@@ -14,6 +14,7 @@
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
 @inject IAutoresController AutoresController
+@inject ILibrosController LibrosController
 
 
 <style>
@@ -184,6 +185,17 @@ else
     async Task DeleteRow(Autores Entidad)
     {
         await RefreshAuthenticationState();
+
+        var librosAsociados = await LibrosController.ExisteAutor(Entidad.AutorId);
+        if (librosAsociados)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                "Este autor no puede eliminarse porque tiene libros asociados.",
+                eIcon.error);
+
+            return;
+        }
+
         var confirmResult = await RadzenMessages.ConfirmAsync(DialogService, "¿Estás seguro de eliminar este registro?", "Confirmación de eliminación");
         if (confirmResult == true)
         {

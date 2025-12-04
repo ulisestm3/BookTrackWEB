@@ -17,6 +17,7 @@ namespace DAL
 
         #endregion
         Task<bool> ExisteISBN(int PublicacionLibroId, string ISBN);
+        Task<bool> ExisteLibro(int LibroId);
     }
     public class PublicacionLibrosController : IPublicacionLibrosController
     {
@@ -101,6 +102,12 @@ namespace DAL
                 a.PublicacionLibroId != PublicacionLibroId &&
                 a.ISBN == ISBN &&
                 a.Activo);
+        }
+        public async Task<bool> ExisteLibro(int LibroId)
+        {
+            using var dbContext = db.CreateDbContext();
+            return await dbContext.PublicacionLibros
+                .AnyAsync(l => l.LibroId == LibroId && l.Activo);
         }
 
     }

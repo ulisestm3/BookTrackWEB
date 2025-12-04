@@ -14,6 +14,7 @@
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
 @inject IPublicacionLibrosController PublicacionLibrosController
+@inject IEjemplaresController EjemplaresController
 
 
 <style>
@@ -129,6 +130,17 @@ else
 
     private async Task BorrarPublicacionLibro(vPublicacionLibros publicacionlibros)
     {
+        var EjemplaresAsociados = await PublicacionLibrosController.ExisteLibro(publicacionlibros.PublicacionLibroId);
+
+        if (EjemplaresAsociados)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                "La publicación del libro no puede eliminarse porque tiene ejemplares asociados.",
+                eIcon.error);
+
+            return;
+        }
+
         var confirm = await RadzenMessages.ConfirmAsync(
             DialogService,
             "¿Está seguro de eliminar este libro?",

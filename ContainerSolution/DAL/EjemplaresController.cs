@@ -18,6 +18,8 @@ namespace DAL
 
         #endregion
         Task<bool> ValidateCodigoBarra(int EjemplarId, string CodigoBarra);
+        Task<bool> ExistePublicacionLibro(int PublicacionLibroId);
+        Task<bool> ExisteEstadoLibro(int EstadoLibroId);
     }
     public class EjemplaresController : IEjemplaresController
     {
@@ -105,6 +107,18 @@ namespace DAL
                     a.EjemplarId != EjemplarId &&
                     a.CodigoBarra == CodigoBarra &&
                     a.Activo == true);
+        }
+        public async Task<bool> ExistePublicacionLibro(int PublicacionLibroId)
+        {
+            using var dbContext = db.CreateDbContext();
+            return await dbContext.vEjemplares
+                .AnyAsync(l => l.PublicacionLibroId == PublicacionLibroId && l.Activo);
+        }
+        public async Task<bool> ExisteEstadoLibro(int EstadoLibroId)
+        {
+            using var dbContext = db.CreateDbContext();
+            return await dbContext.vEjemplares
+                .AnyAsync(l => l.EstadoLibroId == EstadoLibroId && l.Activo);
         }
     }
 }

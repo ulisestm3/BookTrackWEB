@@ -14,6 +14,7 @@
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
 @inject IEstadoLibrosController EstadoLibrosController
+@inject IEjemplaresController EjemplaresController
 
 
 <style>
@@ -193,6 +194,17 @@ else
     async Task DeleteRow(EstadoLibros Entidad)
     {
         await RefreshAuthenticationState();
+
+        var EjemplaresAsociados = await EjemplaresController.ExisteEstadoLibro(Entidad.EstadoLibroId);
+        if (EjemplaresAsociados)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                "El estado del libro no puede eliminarse porque tiene ejemplares asociados.",
+                eIcon.error);
+
+            return;
+        }
+
         var confirmResult = await RadzenMessages.ConfirmAsync(DialogService, "¿Estás seguro de eliminar este registro?", "Confirmación de eliminación");
         if (confirmResult == true)
         {

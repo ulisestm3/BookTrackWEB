@@ -14,6 +14,7 @@
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
 @inject ICategoriasController CategoriasController
+@inject ILibrosController LibrosController
 
 
 <style>
@@ -193,6 +194,17 @@ else
     async Task DeleteRow(Categorias Entidad)
     {
         await RefreshAuthenticationState();
+
+        var librosAsociados = await LibrosController.ExisteCategoria(Entidad.CategoriaId);
+
+        if (librosAsociados)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                "La categoría no puede eliminarse porque tiene libros asociados.",
+                eIcon.error);
+
+            return;
+        }
         var confirmResult = await RadzenMessages.ConfirmAsync(DialogService, "¿Estás seguro de eliminar este registro?", "Confirmación de eliminación");
         if (confirmResult == true)
         {

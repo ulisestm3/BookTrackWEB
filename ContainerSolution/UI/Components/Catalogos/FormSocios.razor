@@ -14,7 +14,7 @@
 @inject IvUsuariosController vUsuariosController
 @inject IUsuariosController UsuariosController
 @inject ISociosController SociosController
-
+@inject IPrestamosController PrestamosController
 
 <style>
     .titulo-azul {
@@ -202,6 +202,17 @@ else
     async Task DeleteRow(Socios Entidad)
     {
         await RefreshAuthenticationState();
+
+        var PrestamoAsociados = await PrestamosController.ExistePrestamoPendiente(Entidad.SocioId);
+        if (PrestamoAsociados)
+        {
+            await RadzenMessages.ShowAlert(DialogService,
+                "Este socio no puede eliminarse porque tiene prestamos asociados.",
+                eIcon.error);
+
+            return;
+        }
+
         var confirmResult = await RadzenMessages.ConfirmAsync(DialogService, "¿Estás seguro de eliminar este registro?", "Confirmación de eliminación");
         if (confirmResult == true)
         {
